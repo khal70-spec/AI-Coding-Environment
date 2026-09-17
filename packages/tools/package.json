@@ -1,0 +1,16 @@
+{
+  "name": "@ai-coding-env/tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tool runtime interfaces (execution lands in Phase 3 behind policy)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test \"../../../tests/unit/tools/**/*.test.mjs\""
+  }
+}

@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Tauri / Rust (Phase 7+)
+apps/desktop/src-tauri/target/
+**/*.rs.bk
+Cargo.lock
+
+# Test / coverage
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Local state, vaults, indexes (NEVER commit)
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+.vault/
+.secrets/
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+credentials.json
+**/credentials*.json
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Snapshots excluded anyway, but keep clean
+.arena/

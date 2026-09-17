@@ -1,0 +1,16 @@
+{
+  "name": "@ai-coding-env/providers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Provider adapter interface, model registry schema, capability model",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test \"../../../tests/unit/providers/**/*.test.mjs\""
+  }
+}
