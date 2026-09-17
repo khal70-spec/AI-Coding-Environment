@@ -194,3 +194,7 @@ export type {
 } from "./runtime.ts";
 export { investigate, INVESTIGATION_SECTIONS_GUIDE } from "./investigator.ts";
 export type { InvestigateResult, InvestigateTaskSpec } from "./investigator.ts";
+export { architectPlan, planLooksStructured, PLAN_SECTIONS_GUIDE } from "./architect.ts";
+export type { ArchitectTaskSpec, PlanResult } from "./architect.ts";
+export { implement, MAX_IMPLEMENT_FIX_ATTEMPTS } from "./implementer.ts";
+export type { ImplementerTaskSpec, ImplementResult, TestVerdict } from "./implementer.ts";

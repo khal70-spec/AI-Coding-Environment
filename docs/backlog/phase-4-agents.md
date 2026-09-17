@@ -33,16 +33,16 @@ scan/browser), evidence-checked verify, blocking lint, 418 tests green.
   denial-adaptation, awaiting-approval, transcript assertion, jail-escape attempt
   from a hostile "model" lands as POLICY_DENIED/JAIL_ESCAPE events only
 
-## P4.3 Architect/planner
+## P4.3 Architect/planner — DONE
 
-- [ ] `plan(task, investigation)` — produces a structured plan artifact
+- [x] `plan(task, investigation)` — produces a structured plan artifact
   (steps + touched paths); may `fs.write` inside the task workspace (manifest grant)
   with overwrite approval semantics intact
-- [ ] Plan shape: numbered steps, each `{ goal, files?, verify? }`; stabilizer tests
+- [x] Plan shape: numbered steps, each `{ goal, files?, verify? }`; stabilizer tests
 
-## P4.4 Implementer + tester loop
+## P4.4 Implementer + tester loop — DONE
 
-- [ ] `implement(plan, approval)` — plan-scoped edits via fs.write/fs.edit (approval
+- [x] `implement(plan, approval)` — plan-scoped edits via fs.write/fs.edit (approval
   flow), `test.exec` runs inside the jail; failure feed-back into fix iterations;
   bounded by `MAX_FIX_ATTEMPTS` (engine); persists fresh `test_results` rows so the
   verify cross-check (P3.4) stays real
