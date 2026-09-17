@@ -25,7 +25,6 @@ function nodeTestArgv(root: string): readonly string[] {
   // package.json scripts.test wins over the npm default ("npm test" already runs it,
   // but being explicit keeps the allowlist auditable).
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
     if (typeof pkg?.name === "string" && pkg?.scripts && typeof pkg.scripts.test === "string") {
       return ["npm", "test"];

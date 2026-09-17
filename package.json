@@ -13,7 +13,7 @@
     "build": "npm run build --workspaces --if-present",
     "test": "node --test \"tests/unit/**/*.test.mjs\" \"tests/security/**/*.test.mjs\" \"tests/integration/**/*.test.mjs\"",
     "test:workspaces": "npm run test --workspaces --if-present",
-    "lint": "eslint . --ext .ts,.tsx 2>/dev/null || echo \"lint: eslint flat config lands in Phase 3 — skipped (advisory)\"",
+    "lint": "eslint packages apps scripts tests",
     "typecheck": "tsc --noEmit -p tsconfig.base.json",
     "audit:deps": "npm audit --audit-level=high",
     "check:secrets": "node scripts/check-secrets.mjs",
@@ -23,7 +23,10 @@
     "node": ">=22.18.0"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/node": "22.20.3",
-    "typescript": "5.9.3"
+    "eslint": "10.10.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.0"
   }
 }

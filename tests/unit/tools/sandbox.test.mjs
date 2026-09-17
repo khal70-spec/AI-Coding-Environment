@@ -1,7 +1,7 @@
 // Unit: sandbox capability detection (P3.2 level-2 markers). PATH-based, no exec.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { detectSandbox, findOnPath, sandboxMarker } from "../../../packages/tools/src/sandbox-detect.ts";

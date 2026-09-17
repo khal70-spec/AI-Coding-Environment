@@ -13,17 +13,6 @@ import { MemoryVault, secretRef, secretValue } from "../../../packages/secrets/s
 
 const KEY = "sk-TESTONLY-dispatch-abcdef0123456789abcdef0123456789";
 
-function recordingTransport(respond) {
-  const calls = [];
-  const transport = async (req) => {
-    calls.push(req);
-    const out = respond(req);
-    if (out.error) throw out.error;
-    return Object.freeze({ status: out.status ?? 200, body: out.body ?? "{}" });
-  };
-  return { calls, transport };
-}
-
 function remoteConfig(overrides = {}) {
   return {
     id: "p-remote",

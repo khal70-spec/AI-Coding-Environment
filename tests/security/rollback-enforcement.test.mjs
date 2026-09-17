@@ -32,8 +32,8 @@ describe("rollback + terminal enforcement (security)", () => {
 
   function taskToImplementing() {
     const t = s.tasks.create({ projectId: s.project.id, title: "t", risk: "low" });
-    for (const _ of ["CLASSIFYING", "INVESTIGATING", "PLANNING", "WAITING_APPROVAL", "PREPARING_WORKSPACE"]) {
-      assert.equal(s.engine.transition({ taskId: t.id, actor: "TESTONLY" }).ok, true);
+    for (const state of ["CLASSIFYING", "INVESTIGATING", "PLANNING", "WAITING_APPROVAL", "PREPARING_WORKSPACE"]) {
+      assert.equal(s.engine.transition({ taskId: t.id, actor: "TESTONLY" }).ok, true, state);
     }
     s.engine.recordCheckpoint(t.id, { sha: "d".repeat(40), branch: "main", dirty: false }, "TESTONLY");
     assert.equal(s.engine.transition({ taskId: t.id, actor: "TESTONLY" }).ok, true);

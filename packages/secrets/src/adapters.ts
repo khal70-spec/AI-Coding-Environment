@@ -186,7 +186,7 @@ export class DarwinSecurityVault implements SecretVault {
     } catch {
       throw new VaultError("NOT_FOUND", "no secret for ref");
     }
-    let value = out.stdout.trimEnd();
+    const value = out.stdout.trimEnd();
     if (value === "") throw new VaultError("NOT_FOUND", "no secret for ref");
     return secretValue(value);
   }

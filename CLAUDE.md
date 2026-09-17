@@ -52,7 +52,7 @@ Build in exactly this order. Do not build the desktop UI before the layers it de
 - Prefer editing existing packages over creating new ones; keep the §48 layout.
 - TypeScript: ESM (`"type": "module"`), `strict`, no `any` without justification, no network/fs access outside the injected tool runtime.
 - Tests: `node --test` (no heavy harness in Phase 0). Place unit tests under `tests/unit/<package>/`, security tests under `tests/security/`.
-- Run at minimum: the affected package tests + `npm run check:secrets`.
+- Run at minimum: the affected package tests + `npm run check:secrets` + `npm run lint` (blocking).
 
 ## 5. File map (where things live)
 
@@ -78,6 +78,7 @@ Build in exactly this order. Do not build the desktop UI before the layers it de
 - [ ] Maps to a backlog item + Plan section
 - [ ] Tests added/updated and passing (evidence pasted)
 - [ ] `npm run check:secrets` passes
+- [ ] `npm run lint` passes (ESLint flat config, blocking since P3.5)
 - [ ] No new high/critical `npm audit` findings (or documented exception)
 - [ ] Docs/ADR updated if behavior or architecture changed
 - [ ] No secrets/PII in diff, logs, or fixtures

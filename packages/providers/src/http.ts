@@ -93,7 +93,6 @@ export function urlFor(baseUrl: string, path: string): string {
   return baseUrl.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
 }
 
-/* eslint-disable no-irregular-whitespace */
 function detailOf(body: string): string {
   const snippet = redact(body.slice(0, 400)).text.trim();
   return snippet === "" ? "" : `: ${snippet}`;

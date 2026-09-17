@@ -12,7 +12,7 @@ export interface CommandVerdict {
 }
 
 /** Shell metacharacters that indicate a raw-shell string instead of argv. */
-const SHELL_META = /[;&|`$(){}<>!#~*?\[\]\\"']/;
+const SHELL_META = /[;&|`$(){}<>!#~*?[\]\\"']/;
 
 export function looksLikeRawShell(input: string): boolean {
   return SHELL_META.test(input);

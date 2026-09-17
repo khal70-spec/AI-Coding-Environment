@@ -37,12 +37,12 @@ command classifier, redaction, path containment, git runner, provider dispatcher
 - [x] Browser worker (stub shape): egress-allowlisted fetch-by-policy, DOM text extraction,
   untrusted-content tagging — no JS execution in Phase 3
 
-## P3.5 ESLint + close-out
+## P3.5 ESLint + close-out — DONE
 
-- [ ] ESLint flat config + typescript-eslint (advisory→becomes blocking gate)
-- [ ] Tests: policy matrix, injection attempts, sandbox escape attempts, path-jail attacks,
+- [x] ESLint flat config + typescript-eslint (advisory→becomes blocking gate)
+- [x] Tests: policy matrix, injection attempts, sandbox escape attempts, path-jail attacks,
   output-cap redaction, `fs`/`terminal` contract suites, stack detection fixtures
-- [ ] CLI surface updates; docs sweep; gate review + tag
+- [x] CLI surface updates; docs sweep; gate review + tag
 
 **Done = policy-matrix green; adversarial terminal tests green; fs/search/git/test-runner
 usable by next phase's agents; lint gate real; `verify --scans` can be end-to-end.**

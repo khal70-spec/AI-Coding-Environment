@@ -20,7 +20,7 @@ const RULES: readonly Rule[] = Object.freeze([
   { id: "jailbreak-persona", severity: "high", re: /\b(do\s+anything\s+now|developer\s+mode|jailbreak|unrestricted\s+mode|evil\s+assistant)\b/i },
   { id: "exfil-api-key", severity: "high", re: /(send|exfiltrat|leak|expose|output|print|reveal|return).{0,60}(api[_-]?key|secret|password|private[_-]?key|token)/i },
   { id: "system-prompt-steal", severity: "high", re: /(reveal|show|output|print|repeat).{0,40}(system\s+prompt|initial\s+instructions|hidden\s+instructions)/i },
-  { id: "run-command", severity: "medium", re: /(run|execute)\s+(this\s+)?(command|script|code|payload)\s*[:\-]/i },
+  { id: "run-command", severity: "medium", re: /(run|execute)\s+(this\s+)?(command|script|code|payload)\s*[:-]/i },
   { id: "urgency-coercion", severity: "medium", re: /\b(urgent|immediately|asap|right\s+now|without\s+asking|do\s+not\s+ask|don't\s+ask)\b.{0,40}\b(send|delete|disable|run|execute|transfer)\b/i },
   { id: "instruction-in-data", severity: "low", re: /^\s*(note|important|attention|ps|p\.s\.|todo)\s*:\s*(you\s+must|always|never|make\s+sure)/im },
 ]);

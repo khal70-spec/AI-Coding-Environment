@@ -284,12 +284,13 @@ function configForProvider(s: Services, providerId: string): ProviderConfig {
   const row = s.providers.get(providerId);
   if (row === undefined) throw new CliError("NOT_FOUND", `unknown provider: ${providerId}`);
   const credRow = s.creds.get(providerId);
-  let config: Record<string, unknown> = {};
-  try {
-    config = JSON.parse(row.configJson) as Record<string, unknown>;
-  } catch {
-    throw new CliError("INVALID_CONFIG", `provider ${providerId} config_json is not parseable`);
-  }
+  const config = ((): Record<string, unknown> => {
+    try {
+      return JSON.parse(row.configJson) as Record<string, unknown>;
+    } catch {
+      throw new CliError("INVALID_CONFIG", `provider ${providerId} config_json is not parseable`);
+    }
+  })();
   return {
     id: row.id,
     name: row.name,
@@ -391,7 +392,7 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           out.print({ id }, `project ${id} archived`);
           return 0;
         }
-        throwUsage("project create|list|archive");
+        return throwUsage("project create|list|archive");
       }
 
       case "task": {
@@ -458,7 +459,7 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           out.print({ id, to }, `task ${id} → ${to} (${reason})`);
           return 0;
         }
-        throwUsage("task create|list|show|advance|fail");
+        return throwUsage("task create|list|show|advance|fail");
       }
 
       case "approve": {
@@ -512,7 +513,7 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           out.print({ id }, `workspace ${id} removed`);
           return 0;
         }
-        throwUsage("workspace prepare|list|remove");
+        return throwUsage("workspace prepare|list|remove");
       }
 
       case "tests": {
@@ -526,10 +527,10 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
         const failed = Number(flagString(global.flags, "failed") ?? "0");
         const skipped = Number(flagString(global.flags, "skipped") ?? "0");
         if (!Number.isInteger(passed) || passed < 0 || !/^[0-9]+$/.test(passedRaw)) {
-          throwUsage("--passed must be a non-negative integer");
+          return throwUsage("--passed must be a non-negative integer");
         }
         if (!Number.isInteger(failed) || failed < 0 || !Number.isInteger(skipped) || skipped < 0) {
-          throwUsage("--failed/--skipped must be non-negative integers");
+          return throwUsage("--failed/--skipped must be non-negative integers");
         }
         const row = s.testResults.add(id, { suite, passed, failed, skipped });
         s.audit.append({
@@ -589,7 +590,7 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           out.print({ id: rowId, taskId: after.taskId, from: before.status, to: status }, `finding ${rowId}: ${before.status} → ${status}`);
           return 0;
         }
-        throwUsage("findings add|list|resolve");
+        return throwUsage("findings add|list|resolve");
       }
 
       case "verify": {
@@ -718,9 +719,9 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
             out.print(payload, credRow === undefined ? `provider ${id}: no credential stored` : `provider ${id}: ref ${credRow.vaultRef} last4 ${credRow.last4} (updated ${credRow.updatedAt})`);
             return credRow === undefined ? 1 : 0;
           }
-          throwUsage("provider key set|remove|status <provider-id>");
+          return throwUsage("provider key set|remove|status <provider-id>");
         }
-        throwUsage("provider add|list|remove|test|key");
+        return throwUsage("provider add|list|remove|test|key");
       }
 
       case "model": {
@@ -758,7 +759,7 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           );
           return rows.every((r) => r.ok) ? 0 : 1;
         }
-        throwUsage("model list|discover|probe");
+        return throwUsage("model list|discover|probe");
       }
 
       case "budget": {
@@ -823,7 +824,7 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           out.print({ id }, `budget ${id} removed`);
           return 0;
         }
-        throwUsage("budget set|list|events|remove");
+        return throwUsage("budget set|list|events|remove");
       }
 
       default:

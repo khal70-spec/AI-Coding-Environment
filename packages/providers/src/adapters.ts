@@ -12,7 +12,6 @@ import type {
   ModelCapability,
   ModelRecord,
   ModelStatus,
-  ProviderProtocol,
 } from "./index.ts";
 
 /** Conservative declared capabilities until probes verify (registry marks unverified). */

@@ -3,7 +3,7 @@
 // encrypted vault runs real AES-GCM round-trips on disk.
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, chmodSync, mkdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, chmodSync, } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {

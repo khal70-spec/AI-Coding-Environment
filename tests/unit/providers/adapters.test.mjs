@@ -14,8 +14,7 @@ function recordingTransport(respond) {
   const transport = async (req) => {
     calls.push(req);
     const out = respond(req);
-    // eslint-disable-next-line no-throw-literal
-    if (out.error) throw out.error;
+      if (out.error) throw out.error;
     return Object.freeze({ status: out.status ?? 200, body: out.body ?? "{}" });
   };
   return { calls, transport };

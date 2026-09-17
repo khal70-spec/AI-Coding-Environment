@@ -77,31 +77,30 @@ export class GitRunner {
     if (verdict.risk === "blocked") {
       throw new GitSafetyError("BLOCKED_COMMAND", `classifier blocked argv: ${verdict.reasons.join("; ")}`);
     }
-    let stdout = "";
-    let stderr = "";
-    try {
-      stdout = execFileSync("git", argv.slice(1), {
-        cwd: this.root,
-        encoding: "utf8",
-        maxBuffer: MAX_BUFFER,
-        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-    } catch (err) {
-      const e = err as { status?: number; stdout?: string; stderr?: string; message?: string };
-      const rErr = redact(e.stderr ?? e.message ?? "git failed");
-      const rOut = redact(e.stdout ?? "");
-      throw new GitSafetyError(
-        "EXEC_FAILED",
-        `git exited ${String(e.status ?? "?")}: ${rErr.text.trim().slice(0, 500)}${rOut.text.trim() === "" ? "" : ` | stdout: ${rOut.text.trim().slice(0, 200)}`}`,
-      );
-    }
+    const stdout = ((): string => {
+      try {
+        return execFileSync("git", argv.slice(1), {
+          cwd: this.root,
+          encoding: "utf8",
+          maxBuffer: MAX_BUFFER,
+          env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+      } catch (err) {
+        const e = err as { status?: number; stdout?: string; stderr?: string; message?: string };
+        const rErr = redact(e.stderr ?? e.message ?? "git failed");
+        const rOut = redact(e.stdout ?? "");
+        throw new GitSafetyError(
+          "EXEC_FAILED",
+          `git exited ${String(e.status ?? "?")}: ${rErr.text.trim().slice(0, 500)}${rOut.text.trim() === "" ? "" : ` | stdout: ${rOut.text.trim().slice(0, 200)}`}`,
+        );
+      }
+    })();
     const rOut = redact(stdout);
-    const rErr = redact(stderr);
     return {
       stdout: rOut.text,
-      stderr: rErr.text,
-      redactedKinds: Object.freeze([...new Set([...rOut.hits, ...rErr.hits])]),
+      stderr: "",
+      redactedKinds: Object.freeze([...rOut.hits]),
     };
   }
 

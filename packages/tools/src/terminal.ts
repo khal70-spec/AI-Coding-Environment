@@ -22,7 +22,7 @@ import { spawn } from "node:child_process";
 import { relative } from "node:path";
 import { classifyCommand } from "../../security/src/commands.ts";
 import { assertContainedSync } from "../../security/src/paths.ts";
-import { ToolError, type Tool, type ToolContext } from "./runtime.ts";
+import { ToolError, type Tool } from "./runtime.ts";
 
 export const TERMINAL_MAX_OUTPUT_BYTES = 256 * 1024;
 export const TERMINAL_DEFAULT_TIMEOUT_MS = 120_000;
