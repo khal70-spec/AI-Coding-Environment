@@ -1,0 +1,16 @@
+{
+  "name": "@ai-coding-env/security",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Security classifiers: secrets, commands, paths, SSRF, prompt injection",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test \"../../../tests/unit/security/**/*.test.mjs\" \"../../../tests/security/**/*.test.mjs\""
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@ai-coding-env/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Operator/CI CLI (Phase 0: version/help/doctor only)",
+  "bin": {
+    "aice": "./src/cli.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test \"../../../tests/unit/cli/**/*.test.mjs\""
+  }
+}

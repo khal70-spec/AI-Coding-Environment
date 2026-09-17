@@ -1,0 +1,16 @@
+{
+  "name": "@ai-coding-env/context",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Context engine interfaces: classified chunks, budgets (assembly in Phase 5)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test \"../../../tests/unit/context/**/*.test.mjs\""
+  }
+}
