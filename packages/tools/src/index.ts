@@ -69,3 +69,8 @@ export type { ArgvRejection, TerminalExecResult } from "./terminal.ts";
 
 export { detectSandbox, findOnPath, sandboxMarker } from "./sandbox-detect.ts";
 export type { SandboxReport } from "./sandbox-detect.ts";
+export { GIT_TOOLS, gitExec } from "./git-tools.ts";
+export { STACK_TEST_COMMANDS, detectStack } from "./stack-detect.ts";
+export type { StackInfo, StackKind } from "./stack-detect.ts";
+export { TEST_RUNNER_TOOLS, normalizeTestResult, testExec } from "./test-runner-tool.ts";
+export type { NormalizedTestResult } from "./test-runner-tool.ts";

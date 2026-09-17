@@ -23,12 +23,12 @@ command classifier, redaction, path containment, git runner, provider dispatcher
 - [x] Sandbox level 2 markers (bubblewrap/firejail detection on linux; documented fallback gate)
 - [x] No-shell / no-pipe / no-backtick enforcement proven by adversarial tests
 
-## P3.3 Git + test-runner tools
+## P3.3 Git + test-runner tools — DONE (verify-evidence wiring moves to P3.4)
 
-- [ ] Git tool = `GitRunner` surface only (no raw `git`); checkpoint/worktree primitives reused
-- [ ] Stack detection (`package.json`, `composer.json`, `*.csproj`, `requirements.txt`)
-- [ ] Test-runner tool: projects-appropriate command allowlist, JSON(norm) result parse,
-  output capped + redacted, timeout, cwd jail; integration into `verify` evidence
+- [x] Git tool = `GitRunner` surface only (no raw `git`); checkpoint/worktree primitives reused
+- [x] Stack detection (`package.json`, `composer.json`, `*.csproj`, `requirements.txt`)
+- [x] Test-runner tool: stack-allowlisted argv, normalized verdict + capped tail,
+  output capped + redacted, timeout, cwd jail; **`verify` evidence integration → P3.4**
 
 ## P3.4 Security scanners + browser worker hooks
 

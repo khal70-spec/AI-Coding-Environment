@@ -38,6 +38,8 @@ ancestor realpath, `assertContainedSync`).
 | `fs.edit` | literal search/replace (never regex); unique-match by default, ambiguous refuses; **approval** |
 | `fs.search` | bounded regex search (10k files, 200 results), skips binaries + vendor dirs |
 | `terminal.exec` | argv-only spawn — **no shell ever**; destructive shapes **deny**, risky **approval** |
+| `git.exec` | Phase-1 GitRunner surface only; read-only → low risk, mutating → approval, blocked shapes → deny |
+| `test.exec` | stack-detected allowlisted test argv; normalized pass/fail/timeout verdict + capped tail |
 
 ## `terminal.exec` guarantees (sandbox level 1)
 
@@ -54,6 +56,11 @@ ancestor realpath, `assertContainedSync`).
 - **Known limitation (documented)**: level 1 cannot block outbound *network*
   from a child at the OS layer; that lands with level 2 (`sandbox-detect.ts`
   reports bwrap/firejail availability as `sandbox-level-2` markers).
+
+## Stacks + sandbox detection
+
+`src/stack-detect.ts` — read-only project sniffing (`detectStack`) used by
+`test.exec`; the emitted argv is the ONLY thing the test tool can run.
 
 ## Sandbox detection (`src/sandbox-detect.ts`)
 
