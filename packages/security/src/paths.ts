@@ -34,7 +34,7 @@ export function resolveWithinRoot(
     return { ok: false, error: { code: "PATH_INVALID", message: "backslash in path rejected" } };
   }
   // Reject Windows device paths and UNC even on posix hosts (defense in depth).
-  if (/^([a-zA-Z]:[\\/]|CON|PRN|AUX|NUL|COM\d|LPT\d)/i.test(target.trim())) {
+  if (/^([a-zA-Z]:[\\/]|(?:CON|PRN|AUX|NUL|COM\d|LPT\d)(?:\.[^.\\/]*)?(?:[\\/]|$))/i.test(target.trim())) {
     return { ok: false, error: { code: "PATH_INVALID", message: "device/UNC path rejected" } };
   }
   const absRoot = resolve(root);

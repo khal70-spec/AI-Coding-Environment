@@ -6,7 +6,7 @@
 // (stdin only), model discovery + capability probes, budgets (hard-block).
 // Everything exits non-zero on denial — usable directly as a CI gate.
 
-const VERSION = "0.3.0-phase2";
+const VERSION = "0.4.0-phase3";
 
 // ---------------------------------------------------------------- help / doctor
 function help(): string {

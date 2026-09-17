@@ -7,21 +7,21 @@ Tools are the last kernel the agents (Phase 4) consume.
 **Entry state**: approved Phase 2 (`255/255`, tag `phase-2-complete`); policy kernel,
 command classifier, redaction, path containment, git runner, provider dispatcher all live.
 
-## P3.1 Tool kernel
+## P3.1 Tool kernel — DONE
 
-- [ ] `Tool` contract: `{ id, riskTier, schema(json), preflight(args) → verdict, run(ctx) }`;
+- [x] `Tool` contract: `{ id, riskTier, schema(json), preflight(args) → verdict, run(ctx) }`;
   args schema-validated, output byte-capped + redacted, trust-tagged (untrusted model content)
-- [ ] Tool registry behind `permissions` table (effect rows audited); deny-by-default
-- [ ] `fs` tool (read/write/list inside containment jail; symlink-aware from Phase 1)
-- [ ] `search` tool (grep-style read-only)
-- [ ] Safe-edit: patch/structured-edit with rollback marker; never blind-full-file overwrite
+- [x] Tool registry behind `permissions` table (effect rows audited); deny-by-default
+- [x] `fs` tool (read/write/list inside containment jail; symlink-aware from Phase 1)
+- [x] `search` tool (grep-style read-only)
+- [x] Safe-edit: patch/structured-edit with rollback marker; never blind-full-file overwrite
 
-## P3.2 Terminal tool + sandbox levels
+## P3.2 Terminal tool + sandbox levels — DONE
 
-- [ ] Terminal tool fronting the command classifier (destructive → blocked; risky → approval gate)
-- [ ] Sandbox level 1 (cwd jail + argv-only + no network) end-to-end with tests
-- [ ] Sandbox level 2 markers (bubblewrap/firejail detection on linux; documented fallback gate)
-- [ ] No-shell / no-pipe / no-backtick enforcement proven by adversarial tests
+- [x] Terminal tool fronting the command classifier (destructive → blocked; risky → approval gate)
+- [x] Sandbox level 1 (cwd jail + argv-only + no network) end-to-end with tests
+- [x] Sandbox level 2 markers (bubblewrap/firejail detection on linux; documented fallback gate)
+- [x] No-shell / no-pipe / no-backtick enforcement proven by adversarial tests
 
 ## P3.3 Git + test-runner tools
 

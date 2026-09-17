@@ -22,5 +22,14 @@ describe("paths", () => {
     assert.equal(resolveWithinRoot(ROOT, "a\0b").ok, false);
     assert.equal(resolveWithinRoot(ROOT, "\\\\server\\share").ok, false);
     assert.equal(resolveWithinRoot(ROOT, "C:\\Windows\\x").ok, false);
+    assert.equal(resolveWithinRoot(ROOT, "COM1").ok, false);
+    assert.equal(resolveWithinRoot(ROOT, "NUL.txt").ok, false);
+  });
+
+  it("device-name PREFIXES are fine — only full reserved names are blocked", () => {
+    // Regression (P3.1): conf.txt/console.log/auxiliary.ts were wrongly rejected.
+    for (const p of ["conf.txt", "console.log", "auxiliary.ts", "nully.md", "common1.ts", "CONSIDER.md", "CONIN$"]) {
+      assert.equal(resolveWithinRoot(ROOT, p).ok, true, `${p} must be accepted`);
+    }
   });
 });

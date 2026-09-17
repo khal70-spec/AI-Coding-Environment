@@ -18,10 +18,19 @@ export interface ToolRequest {
   readonly dangerous: boolean;
   /** True when the shape can never be approved (e.g. exfiltration). */
   readonly neverAllow: boolean;
-  /** Filesystem scope the call needs (for fs tools). */
+  /** Filesystem scope the call needs (for fs tools — checked against fsWrite grant). */
   readonly fsScope?: FsScope;
+  /** Filesystem READ scope the call needs (checked against fsRead grant). */
+  readonly fsReadScope?: FsScope;
   /** Network host the call needs (for network tools). */
   readonly networkHost?: string;
+  /**
+   * Set by the orchestrator when explicit human approval evidence exists for this
+   * call (Plan §33). Approvable gates (dangerous / high-risk) shorten to allow;
+   * hard denies (neverAllow, locked workspace, allowlist, scope, classification,
+   * network) are NOT affected.
+   */
+  readonly approved?: boolean;
 }
 
 export interface AgentGrant {
@@ -89,11 +98,16 @@ export function evaluate(request: ToolRequest, grant: AgentGrant, ctx: PolicyCon
     };
   }
   if (request.fsScope !== undefined && !scopeCovers(grant.fsWrite, request.fsScope)) {
-    // Read-vs-write unknown here; callers pass the needed scope and the engine
-    // conservatively checks against write grant for mutating tools. Read-only tools
-    // should pass fsScope "none" unless they escape the workspace.
+    // Mutating tools pass fsScope; read-only tools pass fsReadScope instead.
+    // The write grant conservatively covers both when only fsScope is set.
     reasons.push(`filesystem scope ${request.fsScope} exceeds grant ${grant.fsWrite}`);
     return { decision: "deny", reasons };
+  }
+  if (request.fsReadScope !== undefined && !scopeCovers(grant.fsRead, request.fsReadScope)) {
+    return {
+      decision: "deny",
+      reasons: [`filesystem read scope ${request.fsReadScope} exceeds grant ${grant.fsRead}`],
+    };
   }
   if (request.networkHost !== undefined) {
     if (grant.networkDefault === "deny" && !grant.networkAllow.includes(request.networkHost)) {
@@ -101,16 +115,18 @@ export function evaluate(request: ToolRequest, grant: AgentGrant, ctx: PolicyCon
     }
   }
 
-  // Risk gates (Plan §33): high-risk always needs a human; dangerous ops too.
-  if (request.dangerous) {
+  // Risk gates (Plan §33): high-risk always needs a human; dangerous ops too —
+  // unless approval evidence was supplied (approved: true).
+  const approved = request.approved === true;
+  if (request.dangerous && !approved) {
     reasons.push("dangerous operation — explicit approval required");
     return { decision: "approval", reasons };
   }
-  if (request.risk === "high") {
+  if (request.risk === "high" && !approved) {
     reasons.push("high-risk action — explicit approval required");
     return { decision: "approval", reasons };
   }
-  if (riskAtLeast(request.risk, "medium") && grant.maxRisk === "low") {
+  if (riskAtLeast(request.risk, "medium") && grant.maxRisk === "low" && !approved) {
     reasons.push(`risk ${request.risk} exceeds agent max ${grant.maxRisk}`);
     return { decision: "approval", reasons };
   }

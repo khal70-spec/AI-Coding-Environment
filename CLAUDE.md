@@ -20,7 +20,8 @@ Build in exactly this order. Do not build the desktop UI before the layers it de
 4. Secret vault ✅ (interface + test double; OS adapters land with Phase 2)
 5. SQLite schema ✅ (+runtime DAOs/migrations, Phase 1)
 6. Project/workspace manager ✅ (Phase 1) 7. Git safety layer ✅ (runner, Phase 1)
-8. Tool permission engine ✅ (policy kernel)
+8. Tool permission engine ✅ (policy kernel) — tool system in progress (Phase 3:
+   kernel + fs/search + terminal.exec ✅ P3.1–P3.2)
 9. Provider abstraction ✅ (interface + dispatcher gates, Phase 2)
 10. Adapters ✅ (OpenAI/Anthropic/NVIDIA/local/generic, Phase 2)
 11. Model registry ✅ (in-memory + DB-backed, discovery + probes, Phase 2)

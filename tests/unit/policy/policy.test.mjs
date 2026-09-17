@@ -74,4 +74,38 @@ describe("policy engine", () => {
     const v = evaluate(req({ tool: "mcp.call", networkHost: "evil.TESTONLY.invalid" }), g, ctx);
     assert.equal(v.decision, "deny");
   });
+
+  it("does not grant read scope beyond fsRead (fsReadScope vs fsRead grant)", () => {
+    const g = { ...baseGrant, fsRead: "none", toolsAllow: ["fs.read"] };
+    const v = evaluate(req({ tool: "fs.read", fsReadScope: "workspace" }), g, ctx);
+    assert.equal(v.decision, "deny");
+    assert.match(v.reasons[0], /read scope/);
+  });
+
+  it("approval evidence (approved:true) allows dangerous + high-risk only", () => {
+    const vDanger = evaluate(
+      req({ tool: "fs.delete", risk: "high", dangerous: true, approved: true }),
+      { ...baseGrant, toolsAllow: ["fs.delete"] },
+      ctx,
+    );
+    assert.equal(vDanger.decision, "allow");
+  });
+
+  it("approved:true does NOT bypass hard denies (neverAllow)", () => {
+    const v = evaluate(
+      req({ tool: "terminal.exec", neverAllow: true, approved: true }),
+      { ...baseGrant, toolsAllow: ["terminal.exec"] },
+      ctx,
+    );
+    assert.equal(v.decision, "deny");
+  });
+
+  it("approved:true does NOT bypass allowlist/scope/classification denies", () => {
+    const g = { ...baseGrant, toolsAllow: [] };
+    const v = evaluate(req({ tool: "fs.write", dangerous: true, approved: true }), g, ctx);
+    assert.equal(v.decision, "deny");
+    const gRead = { ...baseGrant, fsRead: "none", toolsAllow: ["fs.read"] };
+    const v2 = evaluate(req({ tool: "fs.read", fsReadScope: "workspace", approved: true }), gRead, ctx);
+    assert.equal(v2.decision, "deny");
+  });
 });
