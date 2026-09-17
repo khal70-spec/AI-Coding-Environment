@@ -63,9 +63,11 @@ Pure-logic kernels with unit + security tests (zero runtime deps):
 
 ## P0.6 Phase-gate review
 
-- [ ] Threat-model re-read; residual risks accepted explicitly
-- [ ] Definition-of-Done spot check (Plan §51 — Phase 0 subset)
-- [ ] Tag `phase-0-complete`, open Phase 1 backlog
+- [x] Threat-model re-read; residual risks accepted explicitly →
+  [`docs/development/phase-0-gate-review.md`](../development/phase-0-gate-review.md)
+- [x] Definition-of-Done spot check (Plan §51 — Phase 0 subset) → same doc
+- [x] Tag `phase-0-complete`, open Phase 1 backlog →
+  [`docs/backlog/phase-1-core-runtime.md`](./phase-1-core-runtime.md)
 
 ## Audit
 
