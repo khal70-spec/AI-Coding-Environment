@@ -38,6 +38,9 @@ function help(): string {
     "  workspace prepare <id>           Approval gate → checkpoint → isolated worktree",
     "  workspace list [--project ID]",
     "  workspace remove <id>",
+    "  tests record <id> --suite S --passed N [--failed N] [--skipped N]",
+    "  findings add <id> --severity S --rule R --summary T [--location L]",
+    "  findings list <id> | findings resolve <rowId> --status S",
     "  verify <id> --tests green|red --scans green|red",
     "  review <id> --by AGENT           Independent review evidence (Plan §3.6)",
     "  audit (--task ID | --project ID) Audit trail (redacted)",
@@ -165,6 +168,8 @@ import {
   RunsDao,
   WorkspacesDao,
   AuditDao,
+  TestResultsDao,
+  FindingsDao,
   ProvidersDao,
   ProviderCredentialsDao,
   ModelsDao,
@@ -207,6 +212,8 @@ interface Services {
   runs: RunsDao;
   workspaces: WorkspacesDao;
   audit: AuditDao;
+  testResults: TestResultsDao;
+  findings: FindingsDao;
   engine: TaskEngine;
   wservice: WorkspaceService;
   providers: ProvidersDao;
@@ -222,15 +229,17 @@ function openServices(dbPath: string): Services {
   const runs = new RunsDao(opened.db);
   const workspaces = new WorkspacesDao(opened.db);
   const audit = new AuditDao(opened.db);
-  const engine = new TaskEngine({ tasks, runs, audit });
-  const wservice = new WorkspaceService({ projects, tasks, runs, workspaces, audit }, engine);
+  const testResults = new TestResultsDao(opened.db);
+  const findings = new FindingsDao(opened.db);
+  const engine = new TaskEngine({ tasks, runs, audit, testResults, findings });
+  const wservice = new WorkspaceService({ projects, tasks, runs, workspaces, audit, testResults, findings }, engine);
   const providers = new ProvidersDao(opened.db);
   const creds = new ProviderCredentialsDao(opened.db);
   const models = new ModelsDao(opened.db);
   const budgets = new BudgetsDao(opened.db);
   const bEvents = new BudgetEventsDao(opened.db);
   return {
-    opened, projects, tasks, runs, workspaces, audit, engine, wservice,
+    opened, projects, tasks, runs, workspaces, audit, testResults, findings, engine, wservice,
     providers, creds, models, budgets, bEvents,
   };
 }
@@ -504,6 +513,83 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           return 0;
         }
         throwUsage("workspace prepare|list|remove");
+      }
+
+      case "tests": {
+        const sub = pos[0];
+        if (sub !== "record") throwUsage("tests record <id> --suite S --passed N [--failed N] [--skipped N]");
+        const id = pos[1] ?? throwUsage("tests record <id> --suite S --passed N");
+        s.tasks.get(id);
+        const suite = needFlag(global.flags, "suite");
+        const passedRaw = needFlag(global.flags, "passed");
+        const passed = Number(passedRaw);
+        const failed = Number(flagString(global.flags, "failed") ?? "0");
+        const skipped = Number(flagString(global.flags, "skipped") ?? "0");
+        if (!Number.isInteger(passed) || passed < 0 || !/^[0-9]+$/.test(passedRaw)) {
+          throwUsage("--passed must be a non-negative integer");
+        }
+        if (!Number.isInteger(failed) || failed < 0 || !Number.isInteger(skipped) || skipped < 0) {
+          throwUsage("--failed/--skipped must be non-negative integers");
+        }
+        const row = s.testResults.add(id, { suite, passed, failed, skipped });
+        s.audit.append({
+          actor, action: "tests.recorded", target: id,
+          taskId: id, decision: "allow",
+          detail: { suite, passed, failed, skipped },
+        });
+        out.print({ id: row.id, taskId: id, suite, passed, failed, skipped }, `test evidence recorded: ${suite} +${passed} -${failed} (row ${row.id})`);
+        return 0;
+      }
+
+      case "findings": {
+        const sub = pos[0] ?? throwUsage("findings add|list|resolve");
+        if (sub === "add") {
+          const id = pos[1] ?? throwUsage("findings add <id> --severity S --rule R --summary T");
+          s.tasks.get(id);
+          const severity = enumFlag(global.flags, "severity", ["info", "low", "medium", "high", "critical"] as const);
+          if (severity === undefined) throwUsage("--severity info|low|medium|high|critical required");
+          const rule = needFlag(global.flags, "rule");
+          const summary = needFlag(global.flags, "summary");
+          const location = flagString(global.flags, "location") ?? null;
+          const row = s.findings.add(id, { severity, ruleId: rule, location, summary });
+          s.audit.append({
+            actor, action: "finding.recorded", target: id,
+            taskId: id, decision: "allow",
+            detail: { severity, ruleId: rule, location },
+          });
+          out.print(
+            { id: row.id, taskId: id, severity, ruleId: rule, location, status: row.status },
+            `finding recorded: ${severity} ${rule}${location ? ` @ ${location}` : ""} (row ${row.id})`,
+          );
+          return 0;
+        }
+        if (sub === "list") {
+          const id = pos[1] ?? throwUsage("findings list <id>");
+          s.tasks.get(id);
+          const rows = s.findings.byTask(id);
+          const blockers = s.findings.openBlockers(id);
+          out.print(
+            { taskId: id, total: rows.length, openBlockers: blockers.length, rows },
+            `findings for ${id}: total=${rows.length} openBlockers=${blockers.length}`,
+          );
+          return 0;
+        }
+        if (sub === "resolve") {
+          const rowId = Number(pos[1] ?? throwUsage("findings resolve <rowId> --status S"));
+          if (!Number.isInteger(rowId) || rowId <= 0) throwUsage("findings resolve <rowId> --status S");
+          const status = enumFlag(global.flags, "status", ["open", "acknowledged", "fixed", "wontfix"] as const);
+          if (status === undefined) throwUsage("--status open|acknowledged|fixed|wontfix required");
+          const before = s.findings.byId(rowId);
+          const after = s.findings.updateStatus(rowId, status);
+          s.audit.append({
+            actor, action: "finding.resolved", target: after.taskId,
+            taskId: after.taskId, decision: "allow",
+            detail: { rowId, from: before.status, to: status },
+          });
+          out.print({ id: rowId, taskId: after.taskId, from: before.status, to: status }, `finding ${rowId}: ${before.status} → ${status}`);
+          return 0;
+        }
+        throwUsage("findings add|list|resolve");
       }
 
       case "verify": {

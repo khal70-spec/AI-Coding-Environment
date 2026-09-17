@@ -109,18 +109,31 @@ export interface ToolContext {
   readonly defaultTimeoutMs?: number;
 }
 
+/** Structured tool output: text goes through redact/cap/tag; data passes to the caller
+ * uninspected except for audit redaction of the STRING only — callers persist rows. */
+export interface ToolRunOutput {
+  readonly text: string;
+  /** Machine-consumable result (findings, normalized tests, fetch metadata). */
+  readonly data?: unknown;
+}
+
 export interface Tool {
   readonly id: string; // "fs.read", "terminal.exec", …
   readonly description: string;
   readonly defaultRisk: RiskLevel;
   readonly argsSchema: Readonly<Record<string, ArgRule>>;
   preflight(args: Readonly<Record<string, unknown>>, ctx: ToolContext): PreflightHints;
-  run(args: Readonly<Record<string, unknown>>, ctx: ToolContext): Promise<string> | string;
+  run(
+    args: Readonly<Record<string, unknown>>,
+    ctx: ToolContext,
+  ): Promise<string | ToolRunOutput> | string | ToolRunOutput;
 }
 
 export interface ExtendedResult extends ToolResult {
   readonly code?: ToolErrorCode;
   readonly reasons?: readonly string[];
+  /** Structured payload from the tool (scan.findings etc), when provided. */
+  readonly data?: unknown;
 }
 
 export interface ToolEvent {
@@ -246,8 +259,15 @@ export class ToolRunner {
       Math.min(ctx.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS),
     );
     let raw: string;
+    let data: unknown;
     try {
-      raw = await runWithTimeout(tool.run(call.args, { ...ctx, callCwd: call.cwd }), timeoutMs);
+      const out = await runWithTimeout(tool.run(call.args, { ...ctx, callCwd: call.cwd }), timeoutMs);
+      if (typeof out === "string") {
+        raw = out;
+      } else {
+        raw = out.text;
+        data = out.data;
+      }
     } catch (err) {
       if (err instanceof ToolError) {
         return fail(err.code, err.message, err.reasons);
@@ -282,6 +302,7 @@ export class ToolRunner {
       redactedKinds: outputRedacted.hits,
       durationMs: Date.now() - started,
       ...(capped ? { code: "OUTPUT_CAPPED" as const } : {}),
+      ...(data !== undefined ? { data } : {}),
     };
   }
 }

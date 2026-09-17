@@ -9,6 +9,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   openDatabase, ProjectsDao, TasksDao, RunsDao, WorkspacesDao, AuditDao,
+  TestResultsDao,
+  FindingsDao,
 } from "../../packages/storage/src/index.ts";
 import { TaskEngine, WorkspaceService } from "../../packages/orchestrator/src/index.ts";
 import { GitRunner, GitSafetyError } from "../../packages/git/src/runner.ts";
@@ -36,8 +38,10 @@ describe("workspace isolation (security)", () => {
       runs: new RunsDao(db),
       workspaces: new WorkspacesDao(db),
       audit: new AuditDao(db),
+      testResults: new TestResultsDao(db),
+      findings: new FindingsDao(db),
     };
-    const engine = new TaskEngine({ tasks: daos.tasks, runs: daos.runs, audit: daos.audit });
+    const engine = new TaskEngine(daos);
     s = { ...daos, engine, wservice: new WorkspaceService(daos, engine) };
   });
   after(() => {

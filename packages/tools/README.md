@@ -40,6 +40,8 @@ ancestor realpath, `assertContainedSync`).
 | `terminal.exec` | argv-only spawn — **no shell ever**; destructive shapes **deny**, risky **approval** |
 | `git.exec` | Phase-1 GitRunner surface only; read-only → low risk, mutating → approval, blocked shapes → deny |
 | `test.exec` | stack-detected allowlisted test argv; normalized pass/fail/timeout verdict + capped tail |
+| `scan.exec` | gitleaks/semgrep/osv-scanner/trivy adapters — argv-only, offline-only flags, findings normalized + capped (structured data channel) |
+| `browser.fetch` | policy-gated URL fetch (no JS, no redirects, 256KiB cap, html→text); explicit allowlist unlocks loopback (2-regime, ADR-010 posture) |
 
 ## `terminal.exec` guarantees (sandbox level 1)
 
@@ -67,4 +69,8 @@ ancestor realpath, `assertContainedSync`).
 Read-only PATH/env scan (no execution): `detectSandbox()` → `{ maxLevel, bwrap,
 firejail, containerized, flatpak }`; `sandboxMarker()` for doctor/audit rows.
 
-Backlog: `docs/backlog/phase-3-tool-system.md` (P3.1/P3.2 complete).
+Structured outputs: tools may return `{ text, data }` — `data` surfaces on
+`ExtendedResult.data` (scan findings, fetch metadata, normalized tests) so the
+caller can persist task-scoped evidence rows (`test_results`, `security_findings`).
+
+Backlog: `docs/backlog/phase-3-tool-system.md` (P3.1–P3.4 done; lint gate P3.5).

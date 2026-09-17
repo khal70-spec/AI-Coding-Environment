@@ -53,6 +53,7 @@ export type {
   ToolErrorCode,
   ToolEvent,
   ToolAuditSink,
+  ToolRunOutput,
 } from "./runtime.ts";
 export { FS_TOOLS, fsEdit, fsList, fsRead, fsSearch, fsWrite } from "./fs-tools.ts";
 export {
@@ -74,3 +75,8 @@ export { STACK_TEST_COMMANDS, detectStack } from "./stack-detect.ts";
 export type { StackInfo, StackKind } from "./stack-detect.ts";
 export { TEST_RUNNER_TOOLS, normalizeTestResult, testExec } from "./test-runner-tool.ts";
 export type { NormalizedTestResult } from "./test-runner-tool.ts";
+
+export { SCANNER_IDS, SCANNER_TOOLS, countBySeverity, parseScannerOutput, scanExec, scannerArgv } from "./scanner-tools.ts";
+export type { NormalizedFinding, ScannerId } from "./scanner-tools.ts";
+export { BROWSER_TOOLS, browserFetch, checkEgressSafeHost, htmlToText, isPrivateOrMetadataHost } from "./browser-tool.ts";
+export type { UrlGateVerdict } from "./browser-tool.ts";

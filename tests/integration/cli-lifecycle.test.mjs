@@ -80,6 +80,14 @@ describe("CLI lifecycle (real git + SQLite)", () => {
     assert.equal(denied.code, 1);
     assert.match(denied.stderr, /VERIFY_REQUIRED|INDEPENDENT_REVIEW_REQUIRED/);
 
+    // P3.4: verify green is cross-checked against evidence rows — claims without
+    // rows fail closed (denied + audited), so record rows first.
+    const earlyVerify = aiceFail("verify", task.id, "--tests", "green", "--scans", "green");
+    assert.equal(earlyVerify.code, 1);
+    assert.match(earlyVerify.stderr, /no test_results recorded|no scan findings recorded/);
+
+    aiceJson("tests", "record", task.id, "--suite", "unit", "--passed", "12");
+    aiceJson("findings", "add", task.id, "--severity", "info", "--rule", "semgrep::TESTONLY-style", "--summary", "style-only note (TESTONLY)");
     aiceJson("verify", task.id, "--tests", "green", "--scans", "green");
     aiceJson("review", task.id, "--by", "code-reviewer");
     const merged = aiceJson("task", "advance", task.id);

@@ -16,7 +16,7 @@ node apps/cli/src/cli.ts help            # full command surface
 | Projects | `project create\|list\|archive` |
 | Tasks (state machine) | `task create\|list\|show\|advance\|fail` |
 | Approvals (Plan §33) | `approve plan\|final <id> --by <actor>` |
-| Evidence | `checkpoint <id>`, `verify <id> --tests … --scans …`, `review <id> --by <agent>` |
+| Evidence | `checkpoint <id>`, `tests record …`, `findings add\|list\|resolve …`, `verify <id> --tests … --scans …` (cross-checked against evidence rows), `review <id> --by <agent>` |
 | Workspaces (ADR-004) | `workspace prepare\|list\|remove` |
 | Audit | `audit --task ID \| --project ID` |
 | Providers (ADR-002/010) | `provider add\|list\|remove\|test`, `provider key set\|remove\|status` |
@@ -30,6 +30,8 @@ Semantics worth knowing:
 
 - Every `task advance` is guard-checked; **denials exit 1 and are audited** — the CLI
   is usable directly as a CI gate.
+- `verify --tests green` requires a passing `test_results` row; `--scans green` requires
+  recorded scan findings with no open high/critical blockers (fail closed otherwise).
 - `workspace prepare` walks the read-only phases, enforces the plan-approval gate,
   records a checkpoint, then creates an isolated git worktree under
   `<project>/.aice/worktrees/` (add `.aice/` to the project's `.gitignore`).

@@ -7,7 +7,14 @@ import type { Result, TaskState } from "../../core/src/index.ts";
 import { fail, ok, canTransition } from "../../core/src/index.ts";
 import type { Approval, GuardContext } from "./index.ts";
 import { guardTransition, MAX_FIX_ATTEMPTS } from "./index.ts";
-import type { AuditDao, RunsDao, TasksDao, TaskRow } from "../../storage/src/index.ts";
+import type {
+  AuditDao,
+  FindingsDao,
+  RunsDao,
+  TasksDao,
+  TaskRow,
+  TestResultsDao,
+} from "../../storage/src/index.ts";
 
 /** Single forward edge per state; FIXING loops forward to IMPLEMENTING. */
 const NEXT_HAPPY_PATH: Readonly<Partial<Record<TaskState, TaskState>>> = Object.freeze({
@@ -35,6 +42,17 @@ export interface EngineDeps {
   readonly tasks: TasksDao;
   readonly runs: RunsDao;
   readonly audit: AuditDao;
+  /** Machine-checkable verify evidence (P3.4): green claims are cross-checked. */
+  readonly testResults: TestResultsDao;
+  readonly findings: FindingsDao;
+}
+
+/** Raised when a green verify claim lacks backing rows in the evidence tables. */
+export class EngineEvidenceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EngineEvidenceError";
+  }
 }
 
 export interface TransitionRequest {
@@ -167,9 +185,40 @@ export class TaskEngine {
     });
   }
 
-  /** Record verification evidence (tests/scans) — consumed by the MERGED guard. */
+  /**
+   * Record verification evidence (tests/scans) — consumed by the MERGED guard.
+   * P3.4: green claims are CROSS-CHECKED against evidence rows (fail closed):
+   *   testsGreen ⇒ newest test_results row exists and failed === 0
+   *   scansGreen ⇒ scanner ran (≥1 finding row recorded) AND no open high/critical
+   * Violations are denied, audited, and raised as EngineEvidenceError.
+   */
   recordVerify(taskId: string, evidence: { testsGreen: boolean; scansGreen: boolean }, actor: string): number {
     const task = this.deps.tasks.get(taskId);
+    const deny = (reason: string): never => {
+      this.deps.audit.append({
+        actor,
+        action: "verify",
+        target: taskId,
+        projectId: task.projectId,
+        taskId,
+        decision: "deny",
+        detail: { reason, testsGreen: evidence.testsGreen, scansGreen: evidence.scansGreen },
+      });
+      throw new EngineEvidenceError(reason);
+    };
+    if (evidence.testsGreen) {
+      const latest = this.deps.testResults.latestByTask(taskId);
+      if (latest === null) return deny("verify: tests green claimed but no test_results recorded");
+      if (latest.failed > 0) return deny(`verify: latest test_results row has ${latest.failed} failure(s)`);
+    }
+    if (evidence.scansGreen) {
+      const total = this.deps.findings.countByTask(taskId);
+      if (total === 0) return deny("verify: scans green claimed but no scan findings recorded (fail closed)");
+      const blockers = this.deps.findings.openBlockers(taskId);
+      if (blockers.length > 0) {
+        return deny(`verify: ${blockers.length} open high/critical finding(s) (e.g. ${blockers[0]?.ruleId ?? "?"})`);
+      }
+    }
     return this.deps.audit.append({
       actor,
       action: "verify",

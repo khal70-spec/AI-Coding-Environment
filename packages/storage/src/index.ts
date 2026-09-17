@@ -8,6 +8,8 @@ export type { OpenedDatabase } from "./database.ts";
 export { ProjectsDao, TasksDao, RunsDao, WorkspacesDao, AuditDao } from "./dao.ts";
 export type { AuditAppend, AuditEventRow, ProjectRow, RunRow, TaskRow, WorkspaceRow } from "./dao.ts";
 export { ProvidersDao, ProviderCredentialsDao, ModelsDao } from "./dao-providers.ts";
+export { TestResultsDao, FindingsDao } from "./dao-findings.ts";
+export type { FindingRow, FindingSeverity, FindingStatus, TestResultRow } from "./dao-findings.ts";
 export { BudgetsDao, BudgetEventsDao } from "./dao-budgets.ts";
 export type { ProviderRow, CredentialRow, ModelRow, ProviderUpsert, ModelUpsert } from "./dao-providers.ts";
 export type {

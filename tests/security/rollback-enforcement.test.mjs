@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   openDatabase, ProjectsDao, TasksDao, RunsDao, AuditDao,
+  TestResultsDao, FindingsDao,
 } from "../../packages/storage/src/index.ts";
 import { TaskEngine } from "../../packages/orchestrator/src/index.ts";
 
@@ -19,7 +20,9 @@ describe("rollback + terminal enforcement (security)", () => {
     const tasks = new TasksDao(db);
     const runs = new RunsDao(db);
     const audit = new AuditDao(db);
-    s = { projects, tasks, runs, audit, engine: new TaskEngine({ tasks, runs, audit }) };
+    const testResults = new TestResultsDao(db);
+    const findings = new FindingsDao(db);
+    s = { projects, tasks, runs, audit, testResults, findings, engine: new TaskEngine({ tasks, runs, audit, testResults, findings }) };
     s.project = projects.create({ name: "P", rootPath: "/tmp/TESTONLY" });
   });
   after(() => {

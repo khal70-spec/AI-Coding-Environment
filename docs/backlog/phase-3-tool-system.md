@@ -30,11 +30,11 @@ command classifier, redaction, path containment, git runner, provider dispatcher
 - [x] Test-runner tool: stack-allowlisted argv, normalized verdict + capped tail,
   output capped + redacted, timeout, cwd jail; **`verify` evidence integration → P3.4**
 
-## P3.4 Security scanners + browser worker hooks
+## P3.4 Security scanners + browser worker hooks — DONE
 
-- [ ] Semgrep/Gitleaks/OSV/Trivy adapters (argv-only, config-sanitized, output trust-tagged)
-- [ ] `--scans green` becomes real when any scanner runs: findings → `security_findings` rows
-- [ ] Browser worker (stub shape): egress-allowlisted fetch-by-policy, DOM text extraction,
+- [x] Semgrep/Gitleaks/OSV/Trivy adapters (argv-only, config-sanitized, output trust-tagged)
+- [x] `--scans green` becomes real when any scanner runs: findings → `security_findings` rows
+- [x] Browser worker (stub shape): egress-allowlisted fetch-by-policy, DOM text extraction,
   untrusted-content tagging — no JS execution in Phase 3
 
 ## P3.5 ESLint + close-out

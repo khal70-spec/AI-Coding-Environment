@@ -7,13 +7,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   openDatabase, ProjectsDao, TasksDao, RunsDao, AuditDao,
+  TestResultsDao, FindingsDao,
 } from "../../../packages/storage/src/index.ts";
 import { TaskEngine, nextHappyPath } from "../../../packages/orchestrator/src/index.ts";
 import { MAX_FIX_ATTEMPTS } from "../../../packages/orchestrator/src/index.ts";
 
 describe("TaskEngine", () => {
   let dir = "";
-  let db, projects, tasks, runs, audit, engine, project;
+  let db, projects, tasks, runs, audit, testResults, findings, engine, project;
   before(() => {
     dir = mkdtempSync(join(tmpdir(), "aice-eng-"));
     db = openDatabase(join(dir, "app.db")).db;
@@ -21,7 +22,9 @@ describe("TaskEngine", () => {
     tasks = new TasksDao(db);
     runs = new RunsDao(db);
     audit = new AuditDao(db);
-    engine = new TaskEngine({ tasks, runs, audit });
+    testResults = new TestResultsDao(db);
+    findings = new FindingsDao(db);
+    engine = new TaskEngine({ tasks, runs, audit, testResults, findings });
     project = projects.create({ name: "TESTONLY", rootPath: "/tmp/TESTONLY" });
   });
   after(() => {
@@ -34,6 +37,11 @@ describe("TaskEngine", () => {
   }
   function advance(id, actor = "TESTONLY") {
     return engine.transition({ taskId: id, actor });
+  }
+  /** Insert green machine-evidence rows (P3.4) so recordVerify's cross-check passes. */
+  function seedGreenEvidence(id) {
+    testResults.add(id, { suite: "unit", passed: 12, failed: 0, skipped: 0 });
+    findings.add(id, { severity: "low", ruleId: "semgrep::TESTONLY-clean", summary: "no blockers (TESTONLY)" });
   }
 
   it("nextHappyPath covers the full forward chain only", () => {
@@ -65,6 +73,9 @@ describe("TaskEngine", () => {
     assert.equal(r.ok, true);
     r = advance(t.id); // → MERGED denied: verify + reviewer evidence missing
     assert.equal(r.ok, false);
+    // P3.4: a green claim with NO evidence rows must be denied + audited (fail closed)
+    assert.throws(() => engine.recordVerify(t.id, { testsGreen: true, scansGreen: true }, "TESTONLY"), /no test_results recorded/);
+    seedGreenEvidence(t.id);
     engine.recordVerify(t.id, { testsGreen: true, scansGreen: true }, "TESTONLY");
     r = advance(t.id);
     assert.equal(r.ok, false, "still denied: no independent reviewer");
@@ -99,9 +110,42 @@ describe("TaskEngine", () => {
     assert.equal(r.ok, false);
     engine.approve(t.id, "final", "human-TESTONLY");
     assert.equal(advance(t.id).ok, true);
+    seedGreenEvidence(t.id);
     engine.recordVerify(t.id, { testsGreen: true, scansGreen: true }, "TESTONLY");
     engine.recordReview(t.id, "code-reviewer", "TESTONLY");
     assert.equal(advance(t.id).ok, true, "MERGED");
+  });
+
+  it("recordVerify cross-checks evidence rows: no rows, red rows, open blockers all denied + audited", () => {
+    const t = newTask("low");
+    const verifyDenials = () =>
+      audit.listByTask(t.id).filter((e) => e.action === "verify" && e.decision === "deny");
+
+    // 1) scans green claimed with NO findings rows — fail closed
+    assert.throws(
+      () => engine.recordVerify(t.id, { testsGreen: false, scansGreen: true }, "TESTONLY"),
+      /no scan findings recorded/,
+    );
+    // 2) a red newest test_results row blocks testsGreen
+    testResults.add(t.id, { suite: "unit", passed: 10, failed: 2, skipped: 0 });
+    assert.throws(
+      () => engine.recordVerify(t.id, { testsGreen: true, scansGreen: false }, "TESTONLY"),
+      /has 2 failure\(s\)/,
+    );
+    // 3) scans green with an open CRITICAL blocker is denied
+    testResults.add(t.id, { suite: "unit", passed: 12, failed: 0, skipped: 0 });
+    findings.add(t.id, { severity: "critical", ruleId: "gitleaks::secret", summary: "leak (TESTONLY)" });
+    assert.throws(
+      () => engine.recordVerify(t.id, { testsGreen: true, scansGreen: true }, "TESTONLY"),
+      /open high\/critical finding/,
+    );
+    // 4) fixing the blocker unlocks green
+    const blocker = findings.byTask(t.id)[0];
+    findings.updateStatus(blocker.id, "fixed");
+    engine.recordVerify(t.id, { testsGreen: true, scansGreen: true }, "TESTONLY");
+    assert.equal(verifyDenials().length, 3, "all three denials audited before the allow");
+    const allowed = audit.listByTask(t.id).filter((e) => e.action === "verify" && e.decision !== "deny");
+    assert.equal(allowed.length, 1);
   });
 
   it("fix loop budget is enforced from run history", () => {
