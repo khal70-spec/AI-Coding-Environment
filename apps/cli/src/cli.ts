@@ -6,7 +6,7 @@
 // (stdin only), model discovery + capability probes, budgets (hard-block).
 // Everything exits non-zero on denial — usable directly as a CI gate.
 
-const VERSION = "0.4.0-phase3";
+const VERSION = "0.5.0-phase4";
 
 // ---------------------------------------------------------------- help / doctor
 function help(): string {
@@ -159,8 +159,8 @@ function enumFlag<T extends string>(
 }
 
 // ---------------------------------------------------------------- services
-import { resolve } from "node:path";
-import { existsSync, statSync } from "node:fs";
+import { resolve, join } from "node:path";
+import { existsSync, statSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import {
   openDatabase,
   ProjectsDao,
@@ -168,6 +168,7 @@ import {
   RunsDao,
   WorkspacesDao,
   AuditDao,
+  AgentRunsDao,
   TestResultsDao,
   FindingsDao,
   ProvidersDao,
@@ -193,6 +194,16 @@ import type { VaultSelection } from "../../../packages/secrets/src/index.ts";
 import { TaskEngine, WorkspaceService } from "../../../packages/orchestrator/src/index.ts";
 import { GitRunner } from "../../../packages/git/src/runner.ts";
 import { redact } from "../../../packages/security/src/index.ts";
+import { ToolRunner } from "../../../packages/tools/src/runtime.ts";
+import { FS_TOOLS } from "../../../packages/tools/src/fs-tools.ts";
+import { GIT_TOOLS } from "../../../packages/tools/src/git-tools.ts";
+import { TEST_RUNNER_TOOLS } from "../../../packages/tools/src/test-runner-tool.ts";
+import { BUILTIN_MANIFESTS } from "../../../packages/agents/src/index.ts";
+import { investigate } from "../../../packages/agents/src/investigator.ts";
+import { architectPlan } from "../../../packages/agents/src/architect.ts";
+import { implement } from "../../../packages/agents/src/implementer.ts";
+import type { AgentTransport, AgentMessage, AgentRunResult } from "../../../packages/agents/src/runtime.ts";
+import type { PolicyContext } from "../../../packages/policy/src/index.ts";
 import type { TaskState, DataClassification, RiskLevel } from "../../../packages/core/src/index.ts";
 
 const CLASSIFICATIONS: readonly DataClassification[] = ["public", "internal", "confidential", "restricted"];
@@ -221,6 +232,7 @@ interface Services {
   models: ModelsDao;
   budgets: BudgetsDao;
   bEvents: BudgetEventsDao;
+  agentRuns: AgentRunsDao;
 }
 function openServices(dbPath: string): Services {
   const opened = openDatabase(dbPath);
@@ -241,6 +253,7 @@ function openServices(dbPath: string): Services {
   return {
     opened, projects, tasks, runs, workspaces, audit, testResults, findings, engine, wservice,
     providers, creds, models, budgets, bEvents,
+    agentRuns: new AgentRunsDao(opened.db),
   };
 }
 
@@ -312,6 +325,73 @@ async function readAllStdin(limitBytes = 64 * 1024): Promise<string> {
     chunks.push(b);
   }
   return Buffer.concat(chunks).toString("utf8");
+}
+
+// ---------------------------------------------------------------- agent transport
+/** Offline replay transport: paragraphs separated by blank lines, '#' comments stripped. */
+function scriptTransport(turns: readonly string[]): AgentTransport {
+  let i = 0;
+  return async (_messages: readonly AgentMessage[]) => {
+    if (i >= turns.length) {
+      throw new Error(`script exhausted at turn ${String(i + 1)} — add another paragraph to the script file`);
+    }
+    const content = turns[i] as string;
+    i += 1;
+    return { content };
+  };
+}
+
+function parseScriptFile(path: string): readonly string[] {
+  const raw = readFileSync(path, "utf8");
+  const lines = raw.split("\n").filter((l: string) => !l.trimStart().startsWith("#"));
+  return Object.freeze(
+    lines
+      .join("\n")
+      .split(/\n[ \t]*\n+/)
+      .map((p: string) => p.trim())
+      .filter((p: string) => p !== ""),
+  );
+}
+
+/** Provider-backed transport: dispatcher gates (egress, classification, secret scan, budget) hold. */
+function providerTransport(
+  s: Services,
+  actor: string,
+  providers: { providerId: string; modelId: string },
+  contextClassification: DataClassification,
+): AgentTransport {
+  const config = configForProvider(s, providers.providerId);
+  if (config.credentialRef === undefined) {
+    throw new CliError("AUTH", `provider ${providers.providerId} has no credential (aice provider key set ...); local providers may still pass the dispatcher's egress/probe gates`);
+  }
+  return async (messages: readonly AgentMessage[]) => {
+    const { dispatcher } = await makeDispatcher(s, actor);
+    const chatMessages = messages.map((m) => ({
+      role: m.role === "tool" ? ("user" as const) : m.role,
+      content: m.role === "tool" ? `<<<TOOL-MESSAGE>>>\n${m.content}\n<<<END-TOOL-MESSAGE>>>` : m.content,
+    }));
+    const res = await dispatcher.complete(
+      config,
+      { model: providers.modelId, messages: chatMessages },
+      { contextClassification },
+    );
+    return { content: res.content };
+  };
+}
+
+type AgentRunPhase = "investigate" | "plan" | "implement";
+const AGENT_PHASES: readonly AgentRunPhase[] = ["investigate", "plan", "implement"];
+
+/** Phase → registered tool surface (policy gates still apply inside every executor). */
+function registryForPhase(phase: AgentRunPhase): ToolRunner {
+  switch (phase) {
+    case "investigate":
+      return new ToolRunner([...FS_TOOLS, ...GIT_TOOLS]);
+    case "plan":
+      return new ToolRunner([...FS_TOOLS, ...GIT_TOOLS]);
+    case "implement":
+      return new ToolRunner([...FS_TOOLS, ...TEST_RUNNER_TOOLS, ...GIT_TOOLS]);
+  }
 }
 
 interface Out {
@@ -430,6 +510,32 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
             for (const r of runs) console.log(`  ${r.startedAt} ${r.fromState} → ${r.toState} (${r.agent})`);
             console.log("audit:");
             for (const a of audit) console.log(`  #${a.id} ${a.at} ${a.action} ${a.decision ?? ""} ${redactedDetail(a.detail)}`);
+          }
+          return 0;
+        }
+        if (sub === "inspect") {
+          const id = pos[1] ?? throwUsage("task inspect <id>");
+          const t = s.tasks.get(id);
+          const bundle = {
+            task: t,
+            runs: s.runs.listByTask(id),
+            agentRuns: s.agentRuns.listByTask(id),
+            testResults: s.testResults.byTask(id),
+            findings: s.findings.byTask(id),
+            audit: s.audit.listByTask(id),
+          };
+          if (out.json) {
+            out.print(bundle, "");
+          } else {
+            console.log(`task ${t.id} [${t.state}] risk=${t.risk} class=${t.classification}`);
+            console.log(`  ${t.title}`);
+            console.log(`runs: ${bundle.runs.length} | agent runs: ${bundle.agentRuns.length} | test results: ${bundle.testResults.length} | findings: ${bundle.findings.length}`);
+            for (const ar of bundle.agentRuns) {
+              console.log(
+                `  agent ${ar.phase} ${ar.status} rounds=${ar.rounds} tools=${ar.toolCalls} denials=${ar.denials} model=${ar.modelId ?? "—"} (${ar.createdAt})`,
+              );
+              if (ar.finalText !== null) console.log(`    final: ${ar.finalText.slice(0, 160).replace(/\n/g, " ")}`);
+            }
           }
           return 0;
         }
@@ -825,6 +931,139 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           return 0;
         }
         return throwUsage("budget set|list|events|remove");
+      }
+
+      case "agent": {
+        const sub = pos[0];
+        if (sub === "list") {
+          const rows = Object.values(BUILTIN_MANIFESTS).map((m) => ({
+            agent: m.agent,
+            description: m.description,
+            toolsAllow: m.grant.toolsAllow,
+            fsRead: m.grant.fsRead,
+            fsWrite: m.grant.fsWrite,
+            terminal: m.grant.terminal,
+            reservedDeny: m.grant.reservedDeny,
+            maxRisk: m.grant.maxRisk,
+          }));
+          out.print(rows, rows.map((r) => `${r.agent}\t[${r.maxRisk}]\t${r.toolsAllow.join(",")}\t${r.description}`).join("\n"));
+          return 0;
+        }
+        if (sub !== "run") return throwUsage("agent run <task-id> --phase P [--script-file F] [--rounds N] [--approved]");
+        const taskId = pos[1] ?? throwUsage("agent run <task-id> --phase ...");
+        const t = s.tasks.get(taskId);
+        const project = s.projects.get(t.projectId);
+        const phase = enumFlag(global.flags, "phase", AGENT_PHASES);
+        const roundsRaw = flagString(global.flags, "rounds");
+        const maxIterations = roundsRaw === undefined ? 12 : Number(roundsRaw);
+        if (!Number.isInteger(maxIterations) || maxIterations < 1 || maxIterations > 64) {
+          throw new CliError("USAGE", "--rounds must be an integer between 1 and 64");
+        }
+        const approved = global.flags.get("approved") === true;
+        // Jail: latest ACTIVE isolated workspace for this task, else the project root.
+        const ws = s.workspaces
+          .listByProject(project.id)
+          .filter((w) => w.taskId === taskId && w.state === "active")
+          .at(-1);
+        const jailRoot = ws !== undefined ? ws.path : project.rootPath;
+        const policyCtx: PolicyContext = { workspaceLocked: false, providerMaxClassification: t.classification };
+
+        const promptOverride = flagString(global.flags, "prompt");
+        let modelLabel: string | undefined;
+        let transport: AgentTransport;
+        const scriptFile = flagString(global.flags, "script-file");
+        if (scriptFile !== undefined) {
+          transport = scriptTransport(parseScriptFile(scriptFile));
+        } else {
+          // Provider ids are not secrets (Plan §9): flags override env; keys stay in the vault.
+          const providerId = flagString(global.flags, "provider") ?? process.env.AICE_AGENT_PROVIDER;
+          const modelId = flagString(global.flags, "model") ?? process.env.AICE_AGENT_MODEL;
+          if (providerId === undefined || modelId === undefined) {
+            throw new CliError(
+              "USAGE",
+              "no transport configured: pass --script-file F, --provider/--model, or set AICE_AGENT_PROVIDER + AICE_AGENT_MODEL",
+            );
+          }
+          modelLabel = `${providerId}/${modelId}`;
+          transport = providerTransport(s, actor, { providerId, modelId }, t.classification);
+        }
+
+        const runner = registryForPhase(phase);
+        const common = { runner, jailRoot, policyCtx, transport };
+        const opts = { maxIterations, approved };
+        interface FlowResult {
+          status: AgentRunResult["status"];
+          rounds: number;
+          toolCalls: number;
+          denials: number;
+          readonly pendingApproval?: unknown;
+          transcript: AgentRunResult["transcript"];
+        }
+        let result: FlowResult;
+        let finalText: string | null;
+        if (phase === "investigate") {
+          const r = await investigate({ ...common, task: { title: promptOverride ?? t.title, risk: t.risk } }, opts);
+          result = r;
+          finalText = r.note;
+        } else if (phase === "plan") {
+          const note = s.agentRuns.latestByPhase(taskId, "investigate")?.finalText ?? "(no investigation note on record)";
+          const r = await architectPlan({ ...common, task: { title: promptOverride ?? t.title, risk: t.risk, investigation: note }, approved }, opts);
+          result = r;
+          finalText = r.plan;
+        } else {
+          const planText = s.agentRuns.latestByPhase(taskId, "plan")?.finalText ?? "(no plan on record)";
+          const r = await implement({ ...common, task: { title: promptOverride ?? t.title, plan: planText }, approved }, opts);
+          result = r;
+          finalText = r.summary;
+        }
+
+        const row = s.agentRuns.record({
+          taskId,
+          phase,
+          ...(modelLabel !== undefined ? { modelId: modelLabel } : {}),
+          status: result.status,
+          rounds: result.rounds,
+          toolCalls: result.toolCalls,
+          denials: result.denials,
+          transcriptJson: JSON.stringify(result.transcript),
+          ...(finalText !== null ? { finalText } : {}),
+        });
+        // Artifact persistence under the jail's .aice/ (Plan §26: stored, never executed).
+        const artifactDir = join(jailRoot, ".aice", "agent-runs");
+        mkdirSync(artifactDir, { recursive: true });
+        writeFileSync(join(artifactDir, `${row.id}.transcript.json`), JSON.stringify(result.transcript, null, 2) + "\n");
+        if (finalText !== null) writeFileSync(join(artifactDir, `${row.id}.final.md`), finalText + "\n");
+        const stateNow = t.state;
+        s.runs.record({ taskId, agent: `agent:${phase}`, fromState: stateNow, toState: stateNow, modelId: modelLabel, summary: `${result.status} rounds=${result.rounds} denials=${result.denials}` });
+        s.audit.append({
+          actor: actor,
+          action: `agent.run.${phase}`,
+          target: taskId,
+          projectId: project.id,
+          taskId,
+          decision: result.status === "completed" ? "allow" : "deny",
+          detail: {
+            status: result.status,
+            jailRoot,
+            rounds: result.rounds,
+            toolCalls: result.toolCalls,
+            denials: result.denials,
+            model: modelLabel ?? "script-replay",
+            approvedFlag: approved,
+          },
+        });
+        const exitOk = result.status === "completed";
+        out.print(
+          { id: row.id, taskId, phase, status: result.status, rounds: result.rounds, toolCalls: result.toolCalls, denials: result.denials, jailRoot },
+          [
+            `agent ${phase} on task ${taskId}: ${result.status} (row ${row.id})`,
+            `  jail: ${jailRoot}`,
+            `  rounds: ${result.rounds}  tool calls: ${result.toolCalls}  denials: ${result.denials}`,
+            ...(result.status === "awaiting-approval" ? ["  STALLED: approval gate — re-run with --approved after recording Plan §33 evidence"] : []),
+            ...(finalText !== null ? ["", finalText] : []),
+          ].join("\n"),
+        );
+        return exitOk ? 0 : 1;
       }
 
       default:

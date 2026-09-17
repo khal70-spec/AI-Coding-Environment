@@ -193,3 +193,19 @@ CREATE INDEX IF NOT EXISTS idx_runs_task ON runs(task_id);
 CREATE INDEX IF NOT EXISTS idx_audit_task ON audit_events(task_id);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action);
 CREATE INDEX IF NOT EXISTS idx_findings_task ON security_findings(task_id);
+
+CREATE TABLE IF NOT EXISTS agent_runs (
+  id              TEXT PRIMARY KEY,
+  task_id         TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  phase           TEXT NOT NULL CHECK (phase IN ('investigate','plan','implement')),
+  model_id        TEXT,
+  status          TEXT NOT NULL
+    CHECK (status IN ('completed','awaiting-approval','max-iterations','transport-error')),
+  rounds          INTEGER NOT NULL DEFAULT 0,
+  tool_calls      INTEGER NOT NULL DEFAULT 0,
+  denials         INTEGER NOT NULL DEFAULT 0,
+  transcript_json TEXT NOT NULL,
+  final_text      TEXT,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id);

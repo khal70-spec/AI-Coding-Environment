@@ -49,11 +49,12 @@ scan/browser), evidence-checked verify, blocking lint, 418 tests green.
 - [ ] E2E with mock transport over a fixture repo: edit → tests fail → fix → tests
   green → evidence rows → guard advances
 
-## P4.5 CLI + close-out
+## P4.5 CLI + close-out — in flight (CLI DONE)
 
-- [ ] `agent list` (manifest inventory), `agent run <name> --task/--prompt` with
-  `--provider/--model` selection, approval-response flow (`approve` already exists,
-  wire to pending-approval resumes), artifact persistence under workspace `.aice/`
+- [x] `agent list` (manifest inventory), `agent run <task> --phase …` with
+  `--prompt` override + `--provider/--model` over `AICE_AGENT_*` env, approval
+  resume via `--approved` (Plan §33 evidence recorded through existing `approve`),
+  persistence in `agent_runs` (migration 004) + artifacts under jail `.aice/agent-runs/`
 - [ ] Docs sweep; policy-matrix rows for agent-driven flows; gate review;
   tag `phase-4-complete`
 

@@ -5,8 +5,8 @@ export { listMigrationFiles, applyMigrations, defaultMigrationsDir, MigrationErr
 export type { MigrationReport, SqliteDb } from "./migrate.ts";
 export { openDatabase } from "./database.ts";
 export type { OpenedDatabase } from "./database.ts";
-export { ProjectsDao, TasksDao, RunsDao, WorkspacesDao, AuditDao } from "./dao.ts";
-export type { AuditAppend, AuditEventRow, ProjectRow, RunRow, TaskRow, WorkspaceRow } from "./dao.ts";
+export { ProjectsDao, TasksDao, RunsDao, WorkspacesDao, AuditDao, AgentRunsDao } from "./dao.ts";
+export type { AuditAppend, AuditEventRow, AgentRunRow, ProjectRow, RunRow, TaskRow, WorkspaceRow } from "./dao.ts";
 export { ProvidersDao, ProviderCredentialsDao, ModelsDao } from "./dao-providers.ts";
 export { TestResultsDao, FindingsDao } from "./dao-findings.ts";
 export type { FindingRow, FindingSeverity, FindingStatus, TestResultRow } from "./dao-findings.ts";
@@ -40,6 +40,7 @@ export const TABLES: readonly string[] = Object.freeze([
   "security_findings",
   "budgets",
   "budget_events",
+  "agent_runs",
 ]);
 
 /** Forward-only migrations, applied in order. */
@@ -47,6 +48,7 @@ export const MIGRATIONS: readonly { version: number; file: string }[] = Object.f
   { version: 1, file: "001_initial.sql" },
   { version: 2, file: "002_provider_config.sql" },
   { version: 3, file: "003_budgets.sql" },
+  { version: 4, file: "004_agent_runs.sql" },
 ]);
 
 /** Tables that must never contain secret values (enforced by DAO review + tests). */

@@ -318,3 +318,93 @@ export class AuditDao {
     return row === undefined ? undefined : mapAudit(row);
   }
 }
+
+export interface AgentRunRow {
+  readonly id: string;
+  readonly taskId: string;
+  readonly phase: "investigate" | "plan" | "implement";
+  readonly modelId: string | null;
+  readonly status: string;
+  readonly rounds: number;
+  readonly toolCalls: number;
+  readonly denials: number;
+  readonly transcriptJson: string;
+  readonly finalText: string | null;
+  readonly createdAt: string;
+}
+
+function mapAgentRun(r: Record<string, unknown>): AgentRunRow {
+  return {
+    id: asString(r["id"]),
+    taskId: asString(r["task_id"]),
+    phase: asString(r["phase"]) as AgentRunRow["phase"],
+    modelId: asNullableString(r["model_id"]),
+    status: asString(r["status"]),
+    rounds: asNumber(r["rounds"]),
+    toolCalls: asNumber(r["tool_calls"]),
+    denials: asNumber(r["denials"]),
+    transcriptJson: asString(r["transcript_json"]),
+    finalText: asNullableString(r["final_text"]),
+    createdAt: asString(r["created_at"]),
+  };
+}
+
+/**
+ * Agent-loop session store (Plan §26, P4.5). Transcripts are untrusted model I/O:
+ * stored verbatim for replay/evidence, never executed from the DB.
+ */
+export class AgentRunsDao {
+  private readonly db: SqliteDb;
+  constructor(db: SqliteDb) {
+    this.db = db;
+  }
+  record(input: {
+    taskId: string;
+    phase: AgentRunRow["phase"];
+    modelId?: string;
+    status: string;
+    rounds: number;
+    toolCalls: number;
+    denials: number;
+    transcriptJson: string;
+    finalText?: string;
+    id?: string;
+  }): AgentRunRow {
+    const id = input.id ?? newId();
+    this.db
+      .prepare(
+        "INSERT INTO agent_runs (id, task_id, phase, model_id, status, rounds, tool_calls, denials, transcript_json, final_text) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        id,
+        input.taskId,
+        input.phase,
+        input.modelId ?? null,
+        input.status,
+        input.rounds,
+        input.toolCalls,
+        input.denials,
+        input.transcriptJson,
+        input.finalText ?? null,
+      );
+    return this.get(id);
+  }
+  get(id: string): AgentRunRow {
+    const row = this.db.prepare("SELECT * FROM agent_runs WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    if (row === undefined) throw new Error(`agent run not found: ${id}`);
+    return mapAgentRun(row);
+  }
+  /** Project/task-scoped listing (T20: never cross-scope). */
+  listByTask(taskId: string): readonly AgentRunRow[] {
+    return Object.freeze(
+      this.db.prepare("SELECT * FROM agent_runs WHERE task_id = ? ORDER BY created_at, id").all(taskId).map(mapAgentRun),
+    );
+  }
+  latestByPhase(taskId: string, phase: AgentRunRow["phase"]): AgentRunRow | undefined {
+    const row = this.db
+      .prepare("SELECT * FROM agent_runs WHERE task_id = ? AND phase = ? ORDER BY created_at DESC, id DESC LIMIT 1")
+      .get(taskId, phase) as Record<string, unknown> | undefined;
+    return row === undefined ? undefined : mapAgentRun(row);
+  }
+}
