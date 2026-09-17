@@ -179,6 +179,16 @@ export class ToolRunner {
     return Object.freeze([...this.tools.keys()]);
   }
 
+  /** One-line surface description for agent system prompts (id, desc, arg shape). */
+  describe(id: string): string | undefined {
+    const t = this.tools.get(id);
+    if (t === undefined) return undefined;
+    const args = Object.entries(t.argsSchema)
+      .map(([k, r]) => `${k}${r.required ? "!" : "?"}:${r.type}`)
+      .join(", ");
+    return `${t.id}(${args}) — ${t.description}`;
+  }
+
   private emit(event: ToolEvent): void {
     this.audit?.(event);
   }

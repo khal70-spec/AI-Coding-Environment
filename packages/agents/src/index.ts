@@ -23,24 +23,29 @@ export interface PermissionManifest {
   readonly grant: AgentGrant;
 }
 
-/** Canonical tool vocabulary. Unknown tools are denied by the policy engine. */
+/**
+ * Canonical tool vocabulary. Unknown tools are denied by the policy engine.
+ * Phase-4 reconciliation: ids match the Phase-3 registry (packages/tools/src).
+ * "Reserved" entries exist so manifests stay stable as those tools land (the
+ * registry denies-by-default until they do).
+ */
 export const KNOWN_TOOLS: readonly string[] = Object.freeze([
+  // Phase 3 registry (live)
   "fs.read",
   "fs.write",
-  "fs.delete",
-  "search.exact",
-  "search.semantic",
-  "terminal.run",
-  "git.read",
-  "git.checkpoint",
-  "git.worktree",
-  "git.merge",
-  "tests.run",
-  "security.scan",
-  "browser.run",
+  "fs.list",
+  "fs.search",
+  "fs.edit",
+  "terminal.exec",
+  "git.exec",
+  "test.exec",
+  "scan.exec",
+  "browser.fetch",
+  // Reserved (Phase 5+): orchestration support tools, not yet registered
   "context.assemble",
   "memory.read",
   "memory.write",
+  "search.semantic",
   "mcp.call",
 ]);
 
@@ -65,7 +70,7 @@ export const BUILTIN_MANIFESTS: Readonly<Record<AgentName, PermissionManifest>> 
     agent: "orchestrator",
     version: 1,
     description: "Coordinates tasks; delegates effects to specialized agents.",
-    grant: grant(["context.assemble", "memory.read", "memory.write", "git.read"], {
+    grant: grant(["context.assemble", "memory.read", "memory.write", "git.exec"], {
       maxRisk: "medium",
       maxClassification: "confidential",
     }),
@@ -74,7 +79,7 @@ export const BUILTIN_MANIFESTS: Readonly<Record<AgentName, PermissionManifest>> 
     agent: "investigator",
     version: 1,
     description: "Read-only inspection (default).",
-    grant: grant(["fs.read", "search.exact", "search.semantic", "git.read", "context.assemble"], {
+    grant: grant(["fs.read", "fs.list", "fs.search", "git.exec", "context.assemble", "search.semantic"], {
       fsRead: "project",
       fsWrite: "none",
       maxRisk: "low",
@@ -85,7 +90,7 @@ export const BUILTIN_MANIFESTS: Readonly<Record<AgentName, PermissionManifest>> 
     agent: "architect",
     version: 1,
     description: "Designs solutions; reads project, writes plan artifacts to workspace.",
-    grant: grant(["fs.read", "search.exact", "search.semantic", "git.read", "fs.write"], {
+    grant: grant(["fs.read", "fs.list", "fs.search", "fs.write", "fs.edit", "git.exec"], {
       fsRead: "project",
       fsWrite: "workspace",
       maxRisk: "low",
@@ -97,7 +102,7 @@ export const BUILTIN_MANIFESTS: Readonly<Record<AgentName, PermissionManifest>> 
     version: 1,
     description: "Modifies approved files in the task workspace.",
     grant: grant(
-      ["fs.read", "fs.write", "search.exact", "search.semantic", "terminal.run", "git.read", "git.checkpoint", "tests.run"],
+      ["fs.read", "fs.list", "fs.search", "fs.write", "fs.edit", "terminal.exec", "git.exec", "test.exec"],
       { fsRead: "project", fsWrite: "workspace", terminal: "approved_commands", maxRisk: "medium", maxClassification: "internal" },
     ),
   },
@@ -105,7 +110,7 @@ export const BUILTIN_MANIFESTS: Readonly<Record<AgentName, PermissionManifest>> 
     agent: "tester",
     version: 1,
     description: "Runs suites, analyzes failures, adds tests where authorized.",
-    grant: grant(["fs.read", "fs.write", "terminal.run", "git.read", "tests.run"], {
+    grant: grant(["fs.read", "fs.list", "fs.write", "fs.edit", "terminal.exec", "git.exec", "test.exec"], {
       fsRead: "project",
       fsWrite: "workspace",
       terminal: "approved_commands",
@@ -117,7 +122,7 @@ export const BUILTIN_MANIFESTS: Readonly<Record<AgentName, PermissionManifest>> 
     agent: "security-reviewer",
     version: 1,
     description: "Inspects for vulnerabilities; cannot weaken protections.",
-    grant: grant(["fs.read", "search.exact", "search.semantic", "git.read", "security.scan", "tests.run"], {
+    grant: grant(["fs.read", "fs.list", "fs.search", "git.exec", "scan.exec", "test.exec"], {
       fsRead: "project",
       fsWrite: "none",
       maxRisk: "low",
@@ -128,7 +133,7 @@ export const BUILTIN_MANIFESTS: Readonly<Record<AgentName, PermissionManifest>> 
     agent: "code-reviewer",
     version: 1,
     description: "Independent final-diff review; read-only.",
-    grant: grant(["fs.read", "git.read", "search.exact"], {
+    grant: grant(["fs.read", "fs.list", "fs.search", "git.exec"], {
       fsRead: "project",
       fsWrite: "none",
       maxRisk: "low",
@@ -139,7 +144,7 @@ export const BUILTIN_MANIFESTS: Readonly<Record<AgentName, PermissionManifest>> 
     agent: "docs",
     version: 1,
     description: "Updates documentation only when authorized.",
-    grant: grant(["fs.read", "fs.write", "search.exact"], {
+    grant: grant(["fs.read", "fs.list", "fs.search", "fs.write", "fs.edit"], {
       fsRead: "project",
       fsWrite: "workspace",
       maxRisk: "low",
@@ -150,7 +155,7 @@ export const BUILTIN_MANIFESTS: Readonly<Record<AgentName, PermissionManifest>> 
     agent: "release",
     version: 1,
     description: "Prepares release artifacts; cannot deploy.",
-    grant: grant(["fs.read", "git.read", "tests.run"], {
+    grant: grant(["fs.read", "fs.list", "git.exec", "test.exec"], {
       fsRead: "project",
       fsWrite: "none",
       maxRisk: "low",
@@ -174,3 +179,18 @@ export function validateManifest(m: PermissionManifest): readonly string[] {
   if (m.grant.fsWrite === "project") errors.push("project-wide write is forbidden (workspace only)");
   return Object.freeze(errors);
 }
+
+// Phase 4: governed agent loop kernel + specialized flows.
+export { AgentRunner, parseToolCalls, buildSystemPrompt, DEFAULT_MAX_ITERATIONS } from "./runtime.ts";
+export type {
+  AgentMessage,
+  AgentCompletion,
+  AgentTransport,
+  AgentRunOptions,
+  AgentRunResult,
+  AgentRunnerDeps,
+  PendingApproval,
+  ParsedToolCall,
+} from "./runtime.ts";
+export { investigate, INVESTIGATION_SECTIONS_GUIDE } from "./investigator.ts";
+export type { InvestigateResult, InvestigateTaskSpec } from "./investigator.ts";
