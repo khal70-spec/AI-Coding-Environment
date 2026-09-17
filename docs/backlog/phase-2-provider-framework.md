@@ -49,7 +49,7 @@ provider/model/credential tables exist; vault is handle-only with test double.
 
 ## P2.6 Connection testing, health, failover
 
-- [ ] `testConnection(provider)`: health + auth + list probe, structured report (no stack/body leaks)
+- [x] `testConnection(provider)`: health + auth + list probe, structured report (no stack/body leaks)
 - [ ] Health cache with TTL + status transitions (`available/degraded/unavailable`)
 - [ ] `FailoverRouter`: ordered candidates, classification-filtered; transient
   (RATE_LIMIT/SERVER/NETWORK) → next; AUTH/VALIDATION → mark unavailable, stop; audit every hop

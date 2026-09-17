@@ -10,7 +10,7 @@ const CLI = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "app
 describe("aice cli", () => {
   it("prints version", () => {
     const out = execFileSync(process.execPath, [CLI, "version"], { encoding: "utf8" });
-    assert.match(out, /0\.2\.0-phase1/);
+    assert.match(out, /0\.3\.0-phase2/);
   });
 
   it("doctor passes on a healthy checkout", () => {

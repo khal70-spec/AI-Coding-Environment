@@ -4,7 +4,7 @@
 // workspaces (isolated git worktrees), verify/review evidence, audit trail.
 // Everything exits non-zero on denial — usable directly as a CI gate.
 
-const VERSION = "0.2.0-phase1";
+const VERSION = "0.3.0-phase2";
 
 // ---------------------------------------------------------------- help / doctor
 function help(): string {

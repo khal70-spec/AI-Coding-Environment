@@ -142,3 +142,40 @@ export class InMemoryRegistry implements ModelRegistry {
     this.models.set(id, { ...m, status });
   }
 }
+
+// ─────────────────────────────── Phase 2 runtime ───────────────────────────────
+// The interface above stays dependency-free; adapters/dispatcher live in modules that
+// policy-forbid network access except through the egress-checked transport.
+
+export { ProviderError, TRANSIENT_CODES, isTransientProviderError } from "./errors.ts";
+export type { ProviderErrorCode } from "./errors.ts";
+export {
+  assertProviderEndpoint,
+  urlFor,
+  fetchTransport,
+  statusToProviderError,
+  parseProviderJson,
+  dotPath,
+  DEFAULT_TIMEOUT_MS,
+  DEFAULT_MAX_RESPONSE_BYTES,
+  HEALTH_TIMEOUT_MS,
+} from "./http.ts";
+export type { Transport, TransportRequest, TransportResponse } from "./http.ts";
+export { BaseAdapter } from "./base.ts";
+export type { ProviderConfig, AdapterDeps } from "./base.ts";
+export {
+  OpenAIChatAdapter,
+  NvidiaNimAdapter,
+  AnthropicAdapter,
+  GenericRestAdapter,
+  createAdapter,
+  toModelRecord,
+  PROTOCOL_DEFAULT_BASE,
+} from "./adapters.ts";
+export { ProviderDispatcher } from "./dispatcher.ts";
+export type {
+  ConnectionReport,
+  DispatcherDeps,
+  ProviderEvent,
+  ProviderEventSink,
+} from "./dispatcher.ts";

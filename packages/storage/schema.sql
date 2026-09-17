@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS providers (
   max_classification TEXT NOT NULL DEFAULT 'internal'
     CHECK (max_classification IN ('public','internal','confidential','restricted')),
   enabled     INTEGER NOT NULL DEFAULT 1,
-  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  config_json TEXT NOT NULL DEFAULT '{}'  -- (002) adapter config blob; never secrets
 );
 
 CREATE TABLE IF NOT EXISTS provider_credentials (
