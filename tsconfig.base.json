@@ -13,7 +13,9 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "types": ["node"]
   },
+  "include": ["packages/*/src/**/*.ts", "apps/*/src/**/*.ts"],
   "exclude": ["node_modules", "dist", "build", "coverage"]
 }

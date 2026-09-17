@@ -53,5 +53,19 @@ Fixtures must be synthetic with fake markers (`TESTONLY`, `EXAMPLE`, `<redacted>
 | `npm run test:workspaces` | per-package suites |
 | `npm run check:secrets` | offline secret scan of tracked files |
 | `npm run audit:deps` | `npm audit` at high+ |
-| `npm run lint` / `npm run typecheck` | honest no-ops in Phase 0; real configs land in Phase 1 |
-| `DB_PATH=./.local/app.db node scripts/db-migrate.mjs` | apply SQL migrations (idempotent; driver swap per ADR-008 in Phase 1) |
+| `npm run typecheck` | strict TS check — real, blocking (typescript is a pinned dev-dep since Phase 1) |
+| `npm run lint` | advisory no-op until the ESLint flat config lands (Phase 3) |
+| `DB_PATH=./.local/app.db node scripts/db-migrate.mjs` | apply SQL migrations (idempotent) |
+
+## Operator CLI tour (Phase 1, fully offline)
+
+```bash
+DB=.local/app.db
+node apps/cli/src/cli.ts migrate --db $DB
+PROJ=$(node apps/cli/src/cli.ts project create --name demo --path /path/to/git/repo --json --db $DB | node -pe 'JSON.parse(require("fs").readFileSync(0)).id')
+TASK=$(node apps/cli/src/cli.ts task create --project $PROJ --title "add tests" --risk medium --json --db $DB | node -pe 'JSON.parse(require("fs").readFileSync(0)).id')
+node apps/cli/src/cli.ts approve plan $TASK --by you@local --db $DB
+node apps/cli/src/cli.ts workspace prepare $TASK --db $DB     # gate → checkpoint → isolated worktree
+node apps/cli/src/cli.ts task advance $TASK --db $DB          # walk the machine; denials exit 1
+node apps/cli/src/cli.ts task show $TASK --db $DB             # state + runs + audit trail
+```

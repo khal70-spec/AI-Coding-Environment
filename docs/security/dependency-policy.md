@@ -19,8 +19,9 @@
 7. **Vulnerability response**: critical/high → fix or documented exception within the PR;
    exceptions need owner + expiry + residual risk note.
 
-## Phase 0 dependency set
+## Dependency set (current)
 
-Zero runtime dependencies. Dev/test use only `node --test` + TypeScript (added Phase 1).
-This keeps the foundation auditable while the policy engine, redaction, and state
-machine are built on pure, easily-reviewed logic.
+**Runtime dependencies: zero** — deliberate and enforced by review; security kernels stay
+dependency-free. **Dev dependencies (Phase 1+)**: `typescript@5.9.3`, `@types/node@22.20.3`
+(both exact-pinned, lockfile committed) for the blocking `npm run typecheck` gate.
+ESLint + `typescript-eslint` join as dev-deps with the Phase 3 config wave.

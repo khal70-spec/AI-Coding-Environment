@@ -11,7 +11,14 @@ run tests + security checks, review the diff, and safely roll back.
 
 ## Status
 
-**Phase 0 — Security & architecture foundation** (in progress).
+**Phase 1 — Core runtime** (in progress). Phase 0 (security & architecture foundation)
+is complete and tagged `phase-0-complete`
+([gate review](./docs/development/phase-0-gate-review.md)).
+
+Working today, fully offline: task state machine persisted to SQLite with an append-only
+audit trail, risk-gated approvals, checkpoint → isolated-git-worktree task workspaces,
+guarded (argv-only, redacted) Git execution, and the `aice` operator CLI
+(`project`/`task`/`approve`/`checkpoint`/`workspace`/`verify`/`review`/`audit`).
 
 We build security first, UI last. See [`docs/backlog/`](./docs/backlog/) for the
 ordered implementation backlog and [`docs/adr/`](./docs/adr/) for decisions.

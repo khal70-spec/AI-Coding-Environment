@@ -2,7 +2,8 @@
 
 - `unit/<package>/` — kernel behavior (happy path + edges), `node --test`.
 - `integration/` — real fs/SQLite/Git with no external services (today: migration
-  runner; provider/Git/fs/MCP/terminal coverage from Phase 1).
+  runner + full CLI task lifecycle over a real git repo; provider/fs/MCP/terminal
+  coverage from Phase 2–3).
 - `security/` — adversarial cases: every file must contain expected-block/deny cases.
 - `e2e/` — full `task → plan → approval → implement → test → review → rollback` (Phase 4+).
 

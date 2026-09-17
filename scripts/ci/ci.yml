@@ -1,8 +1,8 @@
 # CI — security gates per Plan §47 and docs/security/dependency-policy.md.
 #
-# Blocking now (Phase 0): tests (unit + security + integration), per-package tests,
+# Blocking: tests (unit + security + integration), per-package tests, strict typecheck,
 # offline secret scan, npm audit (high+), CLI doctor, SQLite migration idempotency.
-# Phase 1: real lint + typecheck (scripts are honest no-ops until the configs land).
+# Lint is advisory until the ESLint flat config lands (Phase 3).
 # Phase 8 (dependency-policy): OSV-Scanner + Semgrep become blocking, Gitleaks + SBOM
 # join, and action references are pinned to full-length SHAs (supply-chain hardening).
 name: ci
@@ -51,11 +51,12 @@ jobs:
       - name: dependency audit (high+, blocking)
         run: npm run audit:deps
 
-      - name: lint (Phase 1 — soft gate)
-        run: npm run lint
-
-      - name: typecheck (Phase 1 — soft gate)
+      - name: typecheck (strict — blocking)
         run: npm run typecheck
+
+      - name: lint (advisory until Phase 3 config)
+        run: npm run lint
+        continue-on-error: true
 
       - name: CLI doctor (offline self-check)
         run: node apps/cli/src/cli.ts doctor

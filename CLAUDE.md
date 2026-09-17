@@ -16,11 +16,14 @@ must not silently remove security controls, verification stages, or required cap
 
 Build in exactly this order. Do not build the desktop UI before the layers it depends on:
 
-1. Repo + ADR structure ✅ (this phase)
-2. Threat model ✅ 3. Security policy ✅ 4. Secret vault
-5. SQLite schema 6. Project/workspace manager 7. Git safety layer
-8. Tool permission engine 9. Provider abstraction 10. Adapters
-11. Model registry 12. Agent abstraction 13. Orchestrator state machine
+1. Repo + ADR structure ✅ 2. Threat model ✅ 3. Security policy ✅
+4. Secret vault ✅ (interface + test double; OS adapters land with Phase 2)
+5. SQLite schema ✅ (+runtime DAOs/migrations, Phase 1)
+6. Project/workspace manager ✅ (Phase 1) 7. Git safety layer ✅ (runner, Phase 1)
+8. Tool permission engine ✅ (policy kernel)
+9. Provider abstraction ✅ (interface) 10. Adapters (Phase 2)
+11. Model registry ✅ (in-memory) 12. Agent abstraction ✅ (manifests)
+13. Orchestrator state machine ✅ (+ task engine, Phase 1)
 14. Investigator 15. Planner 16. Implementer 17. Test runner
 18. Security reviewer 19. Independent reviewer 20. Context engine
 21. Model router 22. MCP manager 23. Skills/plugins 24. Desktop shell

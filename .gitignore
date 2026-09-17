@@ -58,5 +58,9 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Agent task workspaces + local app state (never commit)
+**/.aice/
+/.local/
+
 # Snapshots excluded anyway, but keep clean
 .arena/

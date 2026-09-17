@@ -32,10 +32,13 @@ No content changes are needed — the file is self-contained. After it lands, up
 npm ci
 npm test                  # unit + security + integration
 npm run test:workspaces   # per-package suites
+npm run typecheck         # strict, blocking
 npm run check:secrets
 npm run audit:deps
-npm run lint && npm run typecheck   # soft in Phase 0
+npm run lint              # advisory until Phase 3
 node apps/cli/src/cli.ts doctor
-DB_PATH="$(mktemp -u).db" node scripts/db-migrate.mjs        # apply
-DB_PATH="$(ls -t /tmp/tmp*.db | head -1)" node scripts/db-migrate.mjs || true
+DB=$(mktemp -u).db
+DB_PATH="$DB" node scripts/db-migrate.mjs    # apply
+DB_PATH="$DB" node scripts/db-migrate.mjs    # idempotent re-run skips
+rm -f "$DB"*
 ```

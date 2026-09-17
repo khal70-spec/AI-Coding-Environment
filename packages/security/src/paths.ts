@@ -1,7 +1,7 @@
 // Path containment — Plan §19 Level 1 sandbox, threat T9.
 // Every filesystem tool resolves the target then proves containment in the workspace root.
 import { realpathSync } from "node:fs";
-import { isAbsolute, normalize, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 
 export interface ContainmentError {
   readonly code: "PATH_ESCAPE" | "PATH_INVALID";
@@ -46,8 +46,10 @@ export function resolveWithinRoot(
 }
 
 /**
- * I/O-backed containment: resolves symlinks on both sides. Use before any write/delete
- * of an existing path. Missing paths fall back to lexical check of the real parent.
+ * I/O-backed containment: resolves symlinks on both sides. Use before any write/delete.
+ * Missing targets are proven via the deepest EXISTING ancestor's real path (a symlinked
+ * ancestor must not redirect outside the root), with the remaining suffix pinned
+ * lexically on top of it.
  */
 export function assertContainedSync(
   root: string,
@@ -68,7 +70,26 @@ export function assertContainedSync(
     }
     return { ok: true, path: realTarget };
   } catch {
-    // Target missing: containment of the lexical path already proven above.
-    return { ok: true, path: lexical.path };
+    // Target missing: walk up to the deepest existing ancestor and prove ITS real path
+    // is contained — an ancestor symlink pointing outside is an escape, not a no-op.
+    const suffix: string[] = [];
+    let cursor = lexical.path;
+    while (true) {
+      const parent = dirname(cursor);
+      if (parent === cursor) {
+        return { ok: false, error: { code: "PATH_INVALID", message: "no existing ancestor for target" } };
+      }
+      suffix.unshift(basename(cursor));
+      cursor = parent;
+      try {
+        const realAncestor = realpathSync(cursor);
+        if (!isWithinRoot(realRoot, realAncestor)) {
+          return { ok: false, error: { code: "PATH_ESCAPE", message: "symlinked ancestor escapes workspace root" } };
+        }
+        return { ok: true, path: join(realAncestor, ...suffix) };
+      } catch {
+        continue; // ancestor missing too — keep walking up
+      }
+    }
   }
 }

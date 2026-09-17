@@ -1,6 +1,12 @@
-// @ai-coding-env/storage — Plan §30, ADR-008.
-// Phase 0: table inventory + migration manifest (apply via scripts/db-migrate.mjs).
-// Typed DAOs + driver selection land in Phase 1.
+// @ai-coding-env/storage — Plan §30, ADR-008/ADR-009.
+// Tables + migrations (migrations/ is the source of truth, schema.sql its tested mirror),
+// shared migration runner, boot-path opener, and typed DAOs (audit is append-only).
+export { listMigrationFiles, applyMigrations, defaultMigrationsDir, MigrationError } from "./migrate.ts";
+export type { MigrationReport, SqliteDb } from "./migrate.ts";
+export { openDatabase } from "./database.ts";
+export type { OpenedDatabase } from "./database.ts";
+export { ProjectsDao, TasksDao, RunsDao, WorkspacesDao, AuditDao } from "./dao.ts";
+export type { AuditAppend, AuditEventRow, ProjectRow, RunRow, TaskRow, WorkspaceRow } from "./dao.ts";
 
 /** Canonical table inventory — integration tests assert the live DB matches this. */
 export const TABLES: readonly string[] = Object.freeze([
