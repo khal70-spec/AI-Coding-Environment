@@ -18,7 +18,7 @@ import {
 } from "../../../packages/secrets/src/index.ts";
 
 const REF = secretRef("vault://providers/p1/key");
-const VALUE = secretValue("sk-vault-unit-0123456789abcdef");
+const VALUE = secretValue("sk-TESTONLY-vault-0123456789abcdef");
 
 let dir;
 beforeEach(() => {
@@ -36,7 +36,7 @@ describe("EncryptedFileVault", () => {
     const meta = await vault.describe(REF);
     assert.equal(meta.last4, "cdef");
     assert.notEqual(meta.createdAt, "");
-    const other = secretValue("sk-vault-unit-rotated00000099999999");
+    const other = secretValue("sk-TESTONLY-vault-rotated00000099999999");
     await vault.rotate(REF, other);
     assert.equal(String(await vault.load(REF)), String(other));
     assert.equal((await vault.describe(REF)).last4, "9999");

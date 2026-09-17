@@ -11,7 +11,7 @@ import {
 } from "../../../packages/providers/src/index.ts";
 import { MemoryVault, secretRef, secretValue } from "../../../packages/secrets/src/index.ts";
 
-const KEY = "sk-unit-dispatch-abcdef0123456789abcdef0123456789";
+const KEY = "sk-TESTONLY-dispatch-abcdef0123456789abcdef0123456789";
 
 function recordingTransport(respond) {
   const calls = [];
@@ -83,19 +83,19 @@ describe("dispatcher gates", () => {
     await assert.rejects(
       d.complete(
         remoteConfig(),
-        { model: "m", messages: [{ role: "user", content: "paste this key: sk-ant-abcdefghij0123456789" }] },
+        { model: "m", messages: [{ role: "user", content: "paste this key: sk-ant-TESTONLY-abcdefghij0123456789" }] },
         { contextClassification: "public" },
       ),
       (err) =>
         err instanceof ProviderError &&
         err.code === "SECRET_IN_REQUEST" &&
-        !String(err.message).includes("sk-ant-abcdefghij0123456789") &&
+        !String(err.message).includes("sk-ant-TESTONLY-abcdefghij0123456789") &&
         /anthropic/.test(err.message),
     );
     const denied = events.find((e) => e.kind === "provider.dispatch.denied");
     assert.ok(denied, "denial must be reported to the audit sink");
     assert.equal(denied.code, "SECRET_IN_REQUEST");
-    assert.ok(!JSON.stringify(events).includes("sk-ant-abcdefghij0123456789"));
+    assert.ok(!JSON.stringify(events).includes("sk-ant-TESTONLY-abcdefghij0123456789"));
   });
 
   it("completed dispatches emit content-free audit events with usage", async () => {
@@ -127,7 +127,7 @@ describe("dispatcher gates", () => {
     const events = [];
     const d = new ProviderDispatcher({
       transport: async () => {
-        throw new ProviderError("AUTH", `auth failed for key sk-abcdef0123456789abcdef0123456789abcdef`);
+        throw new ProviderError("AUTH", `auth failed for key sk-TESTONLY-abcdef0123456789abcdef0123456789abcdef`);
       },
       audit: (e) => events.push(e),
     });
@@ -141,7 +141,7 @@ describe("dispatcher gates", () => {
     );
     const failed = events.find((e) => e.kind === "provider.dispatch.failed");
     assert.ok(failed);
-    assert.ok(!JSON.stringify(events).includes("sk-abcdef0123456789abcdef0123456789abcdef"));
+    assert.ok(!JSON.stringify(events).includes("sk-TESTONLY-abcdef0123456789abcdef0123456789abcdef"));
   });
 });
 
@@ -191,12 +191,12 @@ describe("dispatcher + local adapter + vault (loopback)", () => {
   });
 
   it("failing endpoint reports redacted detail, code, no body leak", async () => {
-    state.handler = () => ({ status: 500, body: `crash sk-ant-redacted0000secret999` });
+    state.handler = () => ({ status: 500, body: `crash sk-ant-TESTONLY-redacted0000secret999` });
     const events = [];
     const d = new ProviderDispatcher({ transport: fetchTransport(), audit: (e) => events.push(e) });
     const report = await d.testConnection(localConfig());
     assert.equal(report.ok, false);
-    assert.ok(!report.detail.includes("sk-ant-redacted0000secret999"));
+    assert.ok(!report.detail.includes("sk-ant-TESTONLY-redacted0000secret999"));
     const evt = events.find((e) => e.kind === "provider.connection.tested");
     assert.equal(evt.code, "SERVER");
   });

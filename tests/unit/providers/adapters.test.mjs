@@ -25,7 +25,7 @@ function okJson(value) {
   return { status: 200, body: JSON.stringify(value) };
 }
 
-const KEY = "sk-unit-fixture-0123456789abcdef0123456789";
+const KEY = "sk-TESTONLY-fixture-0123456789abcdef0123456789";
 
 async function vaultWithKey() {
   const vault = new MemoryVault();

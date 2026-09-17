@@ -71,7 +71,7 @@ describe("ProviderCredentialsDao", () => {
   it("stores vault:// refs only — values are structurally rejected", () => {
     const id = providers.upsert({ name: "p", protocol: "openai-chat", baseUrl: "https://api.openai.com/v1" });
     assert.throws(
-      () => creds.set(id, "sk-live-should-never-be-here"),
+      () => creds.set(id, "sk-TESTONLY-live-should-never-be-here"),
       /vault:\/\/ reference/,
     );
     creds.set(id, "vault://providers/p/key", "abcd");
