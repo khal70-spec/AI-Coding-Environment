@@ -13,7 +13,8 @@ export type ProviderErrorCode =
   | "SECRET_IN_REQUEST" // outbound gate rejected the messages (T11, fail closed)
   | "EGRESS_DENIED" // endpoint not allowed by provider egress policy (T10)
   | "PROTOCOL_UNSUPPORTED" // config asked for a protocol we don't implement
-  | "CLASSIFICATION_DENIED"; // context data exceeds provider clearance (Plan §36)
+  | "CLASSIFICATION_DENIED" // context data exceeds provider clearance (Plan §36)
+  | "BUDGET_EXCEEDED"; // spend limit hit for provider/model (pre-dispatch, terminal)
 
 export const TRANSIENT_CODES: ReadonlySet<ProviderErrorCode> = new Set([
   "RATE_LIMIT",

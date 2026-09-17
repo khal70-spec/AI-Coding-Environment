@@ -8,10 +8,15 @@ export type { OpenedDatabase } from "./database.ts";
 export { ProjectsDao, TasksDao, RunsDao, WorkspacesDao, AuditDao } from "./dao.ts";
 export type { AuditAppend, AuditEventRow, ProjectRow, RunRow, TaskRow, WorkspaceRow } from "./dao.ts";
 export { ProvidersDao, ProviderCredentialsDao, ModelsDao } from "./dao-providers.ts";
+export { BudgetsDao, BudgetEventsDao } from "./dao-budgets.ts";
 export type { ProviderRow, CredentialRow, ModelRow, ProviderUpsert, ModelUpsert } from "./dao-providers.ts";
+export type {
+  BudgetRow, BudgetUpsert, BudgetEventRow, BudgetEventAppend, SpendSums, BudgetScope, BudgetWindow,
+} from "./dao-budgets.ts";
 export {
   MODEL_STATUSES,
   DEFAULT_MODEL_CONTEXT_WINDOW,
+  naturalModelId,
 } from "./dao-providers.ts";
 
 /** Canonical table inventory — integration tests assert the live DB matches this. */
@@ -31,12 +36,15 @@ export const TABLES: readonly string[] = Object.freeze([
   "audit_events",
   "test_results",
   "security_findings",
+  "budgets",
+  "budget_events",
 ]);
 
 /** Forward-only migrations, applied in order. */
 export const MIGRATIONS: readonly { version: number; file: string }[] = Object.freeze([
   { version: 1, file: "001_initial.sql" },
   { version: 2, file: "002_provider_config.sql" },
+  { version: 3, file: "003_budgets.sql" },
 ]);
 
 /** Tables that must never contain secret values (enforced by DAO review + tests). */

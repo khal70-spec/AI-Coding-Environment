@@ -43,6 +43,7 @@ describe("storage", () => {
     assert.deepEqual(MIGRATIONS, [
       { version: 1, file: "001_initial.sql" },
       { version: 2, file: "002_provider_config.sql" },
+      { version: 3, file: "003_budgets.sql" },
     ]);
   });
 

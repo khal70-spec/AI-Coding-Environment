@@ -18,6 +18,7 @@ silent edit (Plan §57).
 | [007](./ADR-007-task-state-machine.md) | Task state machine | accepted |
 | [008](./ADR-008-storage-sqlite.md) | Local storage: SQLite + migrations | accepted |
 | [009](./ADR-009-sqlite-driver-node-sqlite.md) | SQLite driver: `node:sqlite` (Phase 1) | accepted |
+| [010](./ADR-010-provider-transport-policy.md) | Provider transport: no-redirect + egress per provider | accepted |
 
 ## Format
 

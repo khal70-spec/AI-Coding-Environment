@@ -2,6 +2,8 @@
 // aice — operator/CI CLI. Offline by design (Plan §38); no network is ever used.
 // Phase 1 surface: projects, tasks (state machine), approvals, checkpoints,
 // workspaces (isolated git worktrees), verify/review evidence, audit trail.
+// Phase 2 surface: providers (egress-gated, classification-gated), vault keys
+// (stdin only), model discovery + capability probes, budgets (hard-block).
 // Everything exits non-zero on denial — usable directly as a CI gate.
 
 const VERSION = "0.3.0-phase2";
@@ -39,6 +41,21 @@ function help(): string {
     "  verify <id> --tests green|red --scans green|red",
     "  review <id> --by AGENT           Independent review evidence (Plan §3.6)",
     "  audit (--task ID | --project ID) Audit trail (redacted)",
+    "",
+    "  provider add --name N --protocol P [--base-url U] [--max-classification C] [--config-json J]",
+    "  provider list",
+    "  provider remove <id>",
+    "  provider test <id>               Structured connection probe (fails exit 1)",
+    "  provider key set <id> --stdin    Read key from STDIN ONLY (never argv/files)",
+    "  provider key remove <id>",
+    "  provider key status <id>",
+    "  model list [--provider ID]",
+    "  model discover <provider-id>     Merge provider discovery into the registry",
+    "  model probe <id>|--provider ID   Capability round-trip probe (fails exit 1)",
+    "  budget set --provider|--model ID --window daily|weekly|monthly|total [--usd N|--in N|--out N]",
+    "  budget list",
+    "  budget events [--provider ID] [--limit N]",
+    "  budget remove <id>",
     "",
     "Denials exit 1 and are written to the audit trail.",
   ].join("\n");
@@ -141,8 +158,33 @@ function enumFlag<T extends string>(
 // ---------------------------------------------------------------- services
 import { resolve } from "node:path";
 import { existsSync, statSync } from "node:fs";
-import { openDatabase, ProjectsDao, TasksDao, RunsDao, WorkspacesDao, AuditDao } from "../../../packages/storage/src/index.ts";
+import {
+  openDatabase,
+  ProjectsDao,
+  TasksDao,
+  RunsDao,
+  WorkspacesDao,
+  AuditDao,
+  ProvidersDao,
+  ProviderCredentialsDao,
+  ModelsDao,
+  BudgetsDao,
+  BudgetEventsDao,
+} from "../../../packages/storage/src/index.ts";
 import type { OpenedDatabase } from "../../../packages/storage/src/index.ts";
+import {
+  PROTOCOL_DEFAULT_BASE,
+  ProviderDispatcher,
+  ProviderError,
+  BudgetEnforcer,
+  assertProviderEndpoint,
+  discoverIntoDb,
+  probeModel,
+  probeAll,
+} from "../../../packages/providers/src/index.ts";
+import type { ProviderConfig, ProviderEventSink } from "../../../packages/providers/src/index.ts";
+import { detectVault, last4Of, secretRef, secretValue } from "../../../packages/secrets/src/index.ts";
+import type { VaultSelection } from "../../../packages/secrets/src/index.ts";
 import { TaskEngine, WorkspaceService } from "../../../packages/orchestrator/src/index.ts";
 import { GitRunner } from "../../../packages/git/src/runner.ts";
 import { redact } from "../../../packages/security/src/index.ts";
@@ -167,6 +209,11 @@ interface Services {
   audit: AuditDao;
   engine: TaskEngine;
   wservice: WorkspaceService;
+  providers: ProvidersDao;
+  creds: ProviderCredentialsDao;
+  models: ModelsDao;
+  budgets: BudgetsDao;
+  bEvents: BudgetEventsDao;
 }
 function openServices(dbPath: string): Services {
   const opened = openDatabase(dbPath);
@@ -177,7 +224,84 @@ function openServices(dbPath: string): Services {
   const audit = new AuditDao(opened.db);
   const engine = new TaskEngine({ tasks, runs, audit });
   const wservice = new WorkspaceService({ projects, tasks, runs, workspaces, audit }, engine);
-  return { opened, projects, tasks, runs, workspaces, audit, engine, wservice };
+  const providers = new ProvidersDao(opened.db);
+  const creds = new ProviderCredentialsDao(opened.db);
+  const models = new ModelsDao(opened.db);
+  const budgets = new BudgetsDao(opened.db);
+  const bEvents = new BudgetEventsDao(opened.db);
+  return {
+    opened, projects, tasks, runs, workspaces, audit, engine, wservice,
+    providers, creds, models, budgets, bEvents,
+  };
+}
+
+/** Content-free provider events → append-only audit trail. */
+function auditSinkFor(s: Services, actor: string): ProviderEventSink {
+  return (e) => {
+    try {
+      s.audit.append({
+        actor,
+        action: e.kind,
+        target: e.model !== undefined ? `${e.providerId}/${e.model}` : e.providerId,
+        decision: e.kind.includes("denied") || e.kind.includes("failed") ? "deny" : "allow",
+        detail: {
+          providerId: e.providerId,
+          model: e.model ?? null,
+          code: e.code ?? null,
+          detail: e.detail ?? null,
+          inputTokens: e.inputTokens ?? null,
+          outputTokens: e.outputTokens ?? null,
+        },
+      });
+    } catch {
+      // audit is best-effort at the CLI layer; the engine layer never reaches here
+    }
+  };
+}
+
+/** Build a dispatcher wired to vault + audit + budget extraction for commands. */
+async function makeDispatcher(s: Services, actor: string): Promise<{ dispatcher: ProviderDispatcher; vaultSel: VaultSelection }> {
+  const vaultSel = await detectVault();
+  const sink = auditSinkFor(s, actor);
+  const enforcer = new BudgetEnforcer({ budgets: s.budgets, events: s.bEvents, models: s.models, audit: sink });
+  return {
+    vaultSel,
+    dispatcher: new ProviderDispatcher({ vault: vaultSel.vault, audit: sink, budget: enforcer }),
+  };
+}
+
+/** Compose an adapter config from the DB row (+ its credential ref) for a provider id. */
+function configForProvider(s: Services, providerId: string): ProviderConfig {
+  const row = s.providers.get(providerId);
+  if (row === undefined) throw new CliError("NOT_FOUND", `unknown provider: ${providerId}`);
+  const credRow = s.creds.get(providerId);
+  let config: Record<string, unknown> = {};
+  try {
+    config = JSON.parse(row.configJson) as Record<string, unknown>;
+  } catch {
+    throw new CliError("INVALID_CONFIG", `provider ${providerId} config_json is not parseable`);
+  }
+  return {
+    id: row.id,
+    name: row.name,
+    protocol: row.protocol as ProviderConfig["protocol"],
+    baseUrl: row.baseUrl,
+    maxClassification: row.maxClassification,
+    credentialRef: credRow?.vaultRef,
+    config,
+  };
+}
+
+async function readAllStdin(limitBytes = 64 * 1024): Promise<string> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of process.stdin) {
+    const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+    size += b.length;
+    if (size > limitBytes) throw new CliError("USAGE", `stdin exceeds ${limitBytes} byte cap`);
+    chunks.push(b);
+  }
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 interface Out {
@@ -411,6 +535,209 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           rows.map((a) => `#${a.id}\t${a.at}\t${a.actor}\t${a.action}\t${a.decision ?? ""}\t${redactedDetail(a.detail)}`).join("\n"),
         );
         return 0;
+      }
+
+
+      case "provider": {
+        const sub = pos[0];
+        if (sub === "add") {
+          const name = needFlag(global.flags, "name");
+          const protocol = enumFlag(global.flags, "protocol", Object.keys(PROTOCOL_DEFAULT_BASE) as string[]);
+          const baseUrl = flagString(global.flags, "base-url") ?? PROTOCOL_DEFAULT_BASE[protocol] ?? "";
+          if (baseUrl === "") throw new CliError("USAGE", `protocol ${protocol} requires --base-url`);
+          const maxClassification = enumFlag(global.flags, "max-classification", CLASSIFICATIONS, "internal" as DataClassification);
+          const configJson = flagString(global.flags, "config-json");
+          try {
+            assertProviderEndpoint(baseUrl, protocol as ProviderConfig["protocol"]);
+          } catch (err) {
+            const code = err instanceof ProviderError ? err.code : "EGRESS_DENIED";
+            throw new CliError(code, err instanceof Error ? err.message : "endpoint denied");
+          }
+          const pid = s.providers.upsert({ name, protocol, baseUrl, maxClassification, configJson });
+          s.audit.append({ actor, action: "provider.upsert", target: pid, detail: { name, protocol, baseUrl, maxClassification } });
+          out.print({ id: pid, name, protocol, baseUrl, maxClassification }, `provider ${pid} "${name}" (${protocol} @ ${baseUrl}) [${maxClassification}]`);
+          return 0;
+        }
+        if (sub === "list") {
+          const rows = s.providers.list();
+          out.print(
+            rows,
+            rows
+              .map((r) => `${r.id}\t${r.name}\t${r.protocol}\t${r.maxClassification}\t${r.enabled ? "enabled" : "disabled"}\t${r.baseUrl}`)
+              .join("\n"),
+          );
+          return 0;
+        }
+        if (sub === "remove") {
+          const id = pos[1] ?? throwUsage("provider remove <id>");
+          if (s.providers.get(id) === undefined) throw new CliError("NOT_FOUND", `unknown provider: ${id}`);
+          s.providers.remove(id); // credentials + models cascade (FK)
+          s.audit.append({ actor, action: "provider.remove", target: id });
+          out.print({ id }, `provider ${id} removed (credentials + models cascaded)`);
+          return 0;
+        }
+        if (sub === "test") {
+          const id = pos[1] ?? throwUsage("provider test <id>");
+          const { dispatcher } = await makeDispatcher(s, actor);
+          const report = await dispatcher.testConnection(configForProvider(s, id));
+          out.print(
+            report,
+            report.ok
+              ? `provider ${id}: OK (${report.modelsFound ?? 0} models, ${report.latencyMs}ms)`
+              : `provider ${id}: FAIL — ${report.detail ?? "unreachable"}`,
+          );
+          return report.ok ? 0 : 1;
+        }
+        if (sub === "key") {
+          const keyOp = pos[1];
+          const id = pos[2] ?? throwUsage("provider key set|remove|status <provider-id>");
+          s.providers.get(id);
+          if (!/^[-\w.]+$/.test(id)) throw new CliError("USAGE", "provider id must be a safe slug (letters, digits, -, _, .)");
+          const ref = `vault://providers/${id}/key`;
+          if (keyOp === "set") {
+            if (global.flags.get("stdin") !== true) {
+              throw new CliError(
+                "USAGE",
+                "refusing to read a key anywhere but stdin — pipe it: echo '<key>' | aice provider key set <id> --stdin",
+              );
+            }
+            if (flagString(global.flags, "value") !== undefined) {
+              throw new CliError("USAGE", "--value would place the secret in argv (T5) — stdin only");
+            }
+            const raw = (await readAllStdin()).trim();
+            if (raw === "") throw new CliError("USAGE", "stdin was empty — no key stored");
+            const vaultSel = await detectVault();
+            await vaultSel.vault.store(secretRef(ref), secretValue(raw));
+            const last4 = last4Of(secretValue(raw));
+            s.creds.set(id, ref, last4);
+            s.audit.append({ actor, action: "provider.credential.set", target: id, detail: { ref, last4 } });
+            out.print({ id, ref, last4, backend: vaultSel.kind }, `credential set for ${id} — backend: ${vaultSel.kind}, ref ${ref}, last4: ${last4}`);
+            return 0;
+          }
+          if (keyOp === "remove") {
+            const vaultSel = await detectVault();
+            try {
+              await vaultSel.vault.delete(secretRef(ref));
+            } catch {
+              // not present in the vault — still clear the DB pointer (idempotent)
+            }
+            s.creds.remove(id);
+            s.audit.append({ actor, action: "provider.credential.remove", target: id });
+            out.print({ id }, `credential removed for ${id}`);
+            return 0;
+          }
+          if (keyOp === "status") {
+            const credRow = s.creds.get(id);
+            const payload = credRow === undefined ? { stored: false } : { stored: true, ref: credRow.vaultRef, last4: credRow.last4, updatedAt: credRow.updatedAt };
+            out.print(payload, credRow === undefined ? `provider ${id}: no credential stored` : `provider ${id}: ref ${credRow.vaultRef} last4 ${credRow.last4} (updated ${credRow.updatedAt})`);
+            return credRow === undefined ? 1 : 0;
+          }
+          throwUsage("provider key set|remove|status <provider-id>");
+        }
+        throwUsage("provider add|list|remove|test|key");
+      }
+
+      case "model": {
+        const sub = pos[0];
+        if (sub === "list") {
+          const providerId = flagString(global.flags, "provider");
+          const rows = providerId !== undefined ? s.models.listByProvider(providerId) : s.models.listAll();
+          out.print(
+            rows,
+            rows.map((r) => `${r.id}\t${r.status}\tverified=${r.verified}\tcw=${r.contextWindow}\t${r.displayName}`).join("\n"),
+          );
+          return 0;
+        }
+        if (sub === "discover") {
+          const id = pos[1] ?? throwUsage("model discover <provider-id>");
+          const { dispatcher } = await makeDispatcher(s, actor);
+          const report = await discoverIntoDb(configForProvider(s, id), dispatcher, s.models);
+          s.audit.append({ actor, action: "model.discover", target: id, detail: { added: report.added, updated: report.updated, totalFound: report.totalFound } });
+          out.print(report, `discover ${id}: ${report.totalFound} found (${report.added} added, ${report.updated} updated)`);
+          return 0;
+        }
+        if (sub === "probe") {
+          const providerId = flagString(global.flags, "provider");
+          const targetId = pos[1];
+          if (providerId === undefined && targetId === undefined) throwUsage("model probe <model-id> | model probe --provider ID");
+          const { dispatcher } = await makeDispatcher(s, actor);
+          const providerFor = targetId !== undefined ? (s.models.get(targetId)?.providerId ?? throwUsage("model probe <existing-model-id>")) : providerId;
+          const reports = providerId !== undefined
+            ? await probeAll(configForProvider(s, providerId as string), dispatcher, s.models)
+            : [await probeModel(configForProvider(s, String(providerFor)), dispatcher, s.models, targetId as string)];
+          const rows = reports.map((r) => ({ modelId: r.modelId, ok: r.ok, statusAfter: r.statusAfter, latencyMs: r.latencyMs, detail: r.detail ?? null }));
+          out.print(
+            rows,
+            rows.map((r) => `${r.ok ? "PASS" : "FAIL"}\t${r.modelId}\t${r.statusAfter}\t${r.latencyMs}ms${r.detail ? `\t${r.detail}` : ""}`).join("\n"),
+          );
+          return rows.every((r) => r.ok) ? 0 : 1;
+        }
+        throwUsage("model list|discover|probe");
+      }
+
+      case "budget": {
+        const sub = pos[0];
+        if (sub === "set") {
+          const providerId = flagString(global.flags, "provider");
+          const modelId = flagString(global.flags, "model");
+          if ((providerId === undefined) === (modelId === undefined)) {
+            throw new CliError("USAGE", "provide exactly one of --provider ID or --model ID");
+          }
+          const scope = providerId !== undefined ? "provider" : "model";
+          const scopeId = (providerId ?? modelId) as string;
+          const window = enumFlag(global.flags, "window", ["daily", "weekly", "monthly", "total"] as const);
+          const limitUsd = flagString(global.flags, "usd");
+          const limitIn = flagString(global.flags, "in");
+          const limitOut = flagString(global.flags, "out");
+          const id = s.budgets.set({
+            scope,
+            scopeId,
+            window,
+            limitUsd: limitUsd === undefined ? null : Number(limitUsd),
+            limitTokensIn: limitIn === undefined ? null : Number(limitIn),
+            limitTokensOut: limitOut === undefined ? null : Number(limitOut),
+            hardBlock: true,
+          });
+          s.audit.append({ actor, action: "budget.set", target: id, detail: { scope, scopeId, window, limitUsd, limitIn, limitOut } });
+          out.print(s.budgets.get(id), `budget ${id}: ${scope} ${scopeId} / ${window} (hard block)`);
+          return 0;
+        }
+        if (sub === "list") {
+          const rows = s.budgets.list();
+          out.print(
+            rows,
+            rows
+              .map((b) => `${b.id}\t${b.scope}:${b.scopeId}\t${b.window}\tusd=${b.limitUsd ?? "—"}\tin=${b.limitTokensIn ?? "—"}\tout=${b.limitTokensOut ?? "—"}`)
+              .join("\n"),
+          );
+          return 0;
+        }
+        if (sub === "events") {
+          const providerId = flagString(global.flags, "provider");
+          const limit = flagString(global.flags, "limit");
+          const rows = s.bEvents.listRecent({
+            providerId,
+            limit: limit === undefined ? undefined : Number(limit),
+          });
+          out.print(
+            rows,
+            rows
+              .map(
+                (e) =>
+                  `#${e.id}\t${e.at}\t${e.providerId}\t${e.modelId ?? "—"}\tin=${e.tokensIn}\tout=${e.tokensOut}\t$${e.costUsd.toFixed(6)}\t${e.decision}${e.detail ? `\t${redact(e.detail).text}` : ""}`,
+              )
+              .join("\n"),
+          );
+          return 0;
+        }
+        if (sub === "remove") {
+          const id = pos[1] ?? throwUsage("budget remove <id>");
+          s.budgets.remove(id);
+          s.audit.append({ actor, action: "budget.remove", target: id });
+          out.print({ id }, `budget ${id} removed`);
+          return 0;
+        }
+        throwUsage("budget set|list|events|remove");
       }
 
       default:

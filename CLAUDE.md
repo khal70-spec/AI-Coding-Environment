@@ -21,8 +21,10 @@ Build in exactly this order. Do not build the desktop UI before the layers it de
 5. SQLite schema ✅ (+runtime DAOs/migrations, Phase 1)
 6. Project/workspace manager ✅ (Phase 1) 7. Git safety layer ✅ (runner, Phase 1)
 8. Tool permission engine ✅ (policy kernel)
-9. Provider abstraction ✅ (interface) 10. Adapters (Phase 2)
-11. Model registry ✅ (in-memory) 12. Agent abstraction ✅ (manifests)
+9. Provider abstraction ✅ (interface + dispatcher gates, Phase 2)
+10. Adapters ✅ (OpenAI/Anthropic/NVIDIA/local/generic, Phase 2)
+11. Model registry ✅ (in-memory + DB-backed, discovery + probes, Phase 2)
+12. Agent abstraction ✅ (manifests)
 13. Orchestrator state machine ✅ (+ task engine, Phase 1)
 14. Investigator 15. Planner 16. Implementer 17. Test runner
 18. Security reviewer 19. Independent reviewer 20. Context engine

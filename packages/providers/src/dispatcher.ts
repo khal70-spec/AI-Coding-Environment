@@ -53,6 +53,15 @@ export interface DispatcherDeps {
   readonly timeoutMs?: number;
   readonly maxResponseBytes?: number;
   readonly audit?: ProviderEventSink;
+  /** Optional spend guard (structural; BudgetEnforcer implements it). */
+  readonly budget?: {
+    guard(args: { providerId: string; model: string }): void;
+    record(args: {
+      providerId: string;
+      model: string;
+      usage: { inputTokens: number; outputTokens: number };
+    }): void;
+  };
 }
 
 export interface ConnectionReport {
@@ -134,6 +143,7 @@ export class ProviderDispatcher {
     try {
       this.gate(config, opts);
       this.gateOutbound(config, request);
+      this.deps.budget?.guard({ providerId: config.id, model: request.model });
     } catch (err) {
       const code = err instanceof ProviderError ? err.code : "VALIDATION";
       this.emit({
@@ -147,6 +157,16 @@ export class ProviderDispatcher {
     }
     try {
       const res = await this.adapterFor(config).complete(request);
+      if (res.usage !== undefined) {
+        this.deps.budget?.record({
+          providerId: config.id,
+          model: request.model,
+          usage: {
+            inputTokens: res.usage.inputTokens,
+            outputTokens: res.usage.outputTokens,
+          },
+        });
+      }
       this.emit({
         kind: "provider.dispatch.completed",
         providerId: config.id,

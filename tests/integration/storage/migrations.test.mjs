@@ -39,7 +39,7 @@ describe("db-migrate (sqlite file)", () => {
       env: { ...process.env, DB_PATH: dbPath },
       encoding: "utf8",
     });
-    assert.match(out, /0 applied, 2 skipped/);
+    assert.match(out, /0 applied, 3 skipped/);
   });
 
   it("records only vault references, never secret values, in provider_credentials", () => {

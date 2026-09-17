@@ -56,17 +56,17 @@ provider/model/credential tables exist; vault is handle-only with test double.
 
 ## P2.7 Budgets
 
-- [ ] Migration `003_budgets.sql` (`budgets`, `budget_events`)
-- [ ] `BudgetDao` + pre-dispatch spend check (fail closed) + usage recording from `ChatResponse.usage`
-- [ ] CLI `aice budget set/list/events`
+- [x] Migration `003_budgets.sql` (`budgets`, `budget_events`)
+- [x] `BudgetDao` + pre-dispatch spend check (fail closed) + usage recording from `ChatResponse.usage`
+- [x] CLI `aice budget set/list/events`
 
 ## P2.8 CLI, tests, close-out
 
-- [ ] `aice provider add/list/remove/test`, `aice model list/probe`
-- [ ] Tests: adapter contract (loopback mock, canned OpenAI/Anthropic shapes),
+- [x] `aice provider add/list/remove/test`, `aice model list/probe`
+- [x] Tests: adapter contract (loopback mock, canned OpenAI/Anthropic shapes),
   redaction on I/O, egress denial matrix, failover matrix, vault fallback roundtrip +
   wrong-key fail-closed, budget block
-- [ ] ADR-010 (fetch transport + redirect policy) if needed; docs sweep; gate review; tag
+- [x] ADR-010 (fetch transport + redirect policy) if needed; docs sweep; gate review; tag
 
 **Done = tests + secret scan + audit + typecheck green; provider I/O provably
 redacted/egress-gated/classification-gated; no secret value ever in DB/logs/argv.**

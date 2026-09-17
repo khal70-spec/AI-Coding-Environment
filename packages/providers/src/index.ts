@@ -190,3 +190,7 @@ export {
 export type { DiscoveryReport, ProbeReport } from "./registry.ts";
 export { FailoverRouter, DEFAULT_HEALTH_TTL_MS } from "./router.ts";
 export type { Candidate, RouterDeps } from "./router.ts";
+
+// ─────────────────────────────── Phase 2: budgets ───────────────────────────────
+export { BudgetEnforcer, windowStartIso } from "./budget.ts";
+export type { BudgetDeps, BudgetHook, GuardArgs, RecordArgs } from "./budget.ts";

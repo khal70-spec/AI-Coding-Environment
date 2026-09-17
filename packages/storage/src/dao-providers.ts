@@ -171,6 +171,8 @@ export interface ModelRow {
   readonly verified: boolean;
   readonly contextWindow: number;
   readonly status: string;
+  readonly costPerMtokIn: number | null;
+  readonly costPerMtokOut: number | null;
   readonly updatedAt: string;
 }
 
@@ -195,6 +197,8 @@ function toModelRow(r: Record<string, unknown>): ModelRow {
     verified: Number(r["verified"]) === 1,
     contextWindow: Number(r["context_window"]),
     status: String(r["status"]),
+    costPerMtokIn: r["cost_per_mtok_in"] === null ? null : Number(r["cost_per_mtok_in"]),
+    costPerMtokOut: r["cost_per_mtok_out"] === null ? null : Number(r["cost_per_mtok_out"]),
     updatedAt: String(r["updated_at"]),
   };
 }
@@ -259,6 +263,19 @@ export class ModelsDao {
         "UPDATE models SET status = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
       )
       .run(status, id);
+  }
+
+  setCost(id: string, costPerMtokIn: number | null, costPerMtokOut: number | null): void {
+    for (const [n, v] of [["input", costPerMtokIn], ["output", costPerMtokOut]] as const) {
+      if (v !== null && (!Number.isFinite(v) || v < 0)) {
+        throw new Error(`cost per million ${n} tokens must be a non-negative number or null`);
+      }
+    }
+    this.db
+      .prepare(
+        "UPDATE models SET cost_per_mtok_in = ?, cost_per_mtok_out = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
+      )
+      .run(costPerMtokIn, costPerMtokOut, id);
   }
 
   setVerified(id: string, verified: boolean): void {
