@@ -5,11 +5,11 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
+// Keep aligned with .gitleaks.toml — only pattern definitions + declared fixture files.
 const ALLOWLIST_FILES = new Set([
   "scripts/check-secrets.mjs",
   "packages/security/src/secret-patterns.ts",
   "tests/security/secret-redaction.test.mjs",
-  "tests/security/secret-patterns.test.mjs",
   "docs/security/secret-policy.md",
 ]);
 

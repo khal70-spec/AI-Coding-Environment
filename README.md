@@ -57,11 +57,11 @@ ai-coding-environment/
 │   └── user-guide/         # End-user documentation
 ├── tests/
 │   ├── unit/               # Policy, router, redaction, classifier, state machine
-│   ├── integration/        # Provider/Git/fs/MCP/terminal/SQLite
-│   ├── security/           # Traversal, injection, leakage, SSRF, bypass, IPC
-│   └── e2e/                # task → plan → approval → implement → test → review → rollback
-├── scripts/                # check-secrets, db-migrate, release helpers
-└── .github/workflows/      # CI with mandatory security gates
+│   ├── integration/        # SQLite migrations now; provider/Git/fs/MCP/terminal (Phase 1+)
+│   ├── security/           # Traversal, injection, leakage, SSRF, bypass, MCP
+│   └── e2e/                # task → … → rollback (Phase 4+)
+├── scripts/                # check-secrets, db-migrate, ci/ (workflow pending install)
+└── .github/workflows/      # CI with mandatory security gates (template ready in scripts/ci/)
 ```
 
 ## Task lifecycle
@@ -91,13 +91,21 @@ Full list: Plan §55.
 
 ## Development
 
+Requires **Node.js ≥ 22.18** (tests and the CLI run TypeScript via flag-free
+type-stripping; Node 24 LTS recommended).
+
 ```bash
-node --version   # >= 20
+node --version   # >= 22.18
 npm install
-npm test
+npm test                  # unit + security + integration
+npm run test:workspaces   # per-package suites
 npm run check:secrets
 npm run audit:deps
+npm run db:migrate        # apply SQLite migrations (idempotent, node:sqlite)
 ```
+
+Latest codebase audit (done / not-done / gaps fixed):
+[`docs/development/codebase-audit-2026-09-17.md`](./docs/development/codebase-audit-2026-09-17.md).
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md), [`docs/development/`](./docs/development/),
 [`CLAUDE.md`](./CLAUDE.md), [`AGENTS.md`](./AGENTS.md).

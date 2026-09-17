@@ -28,6 +28,14 @@ CREATED → CLASSIFYING → INVESTIGATING → PLANNING → WAITING_APPROVAL
   for medium/high risk; `MERGED` requires green verify + approval + clean reviewers.
 - Every transition emits an audit event with actor (user/agent id + model id).
 
+> **Implementation note (2026-09-17):** guard placement in the orchestrator kernel is:
+> plan approval for medium/high risk guards `WAITING_APPROVAL → PREPARING_WORKSPACE`;
+> the checkpoint SHA guards `… → IMPLEMENTING` (checkpoint precedes edits, Plan §21);
+> the retry budget guards `FIXING → IMPLEMENTING`; final approval guards
+> `READY → APPROVED`; green tests + green scans + independent reviewer (≠ implementer)
+> guard `APPROVED → MERGED`. Reviewer independence is enforced at agent level
+> (Plan §3.6); model-level diversity is a Phase 5 routing policy.
+
 ## Consequences
 
 - Pure transition kernel with exhaustive unit tests (valid + invalid transitions).

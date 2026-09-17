@@ -11,6 +11,6 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test \"../../../tests/unit/tools/**/*.test.mjs\""
+    "test": "node --test \"../../tests/unit/tools/**/*.test.mjs\""
   }
 }

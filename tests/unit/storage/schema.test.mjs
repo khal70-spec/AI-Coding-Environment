@@ -20,6 +20,23 @@ describe("storage", () => {
     assert.ok(mig.includes("schema_migrations"));
   });
 
+  it("schema.sql is an exact mirror of the migrations (no schema drift)", () => {
+    // Single source of truth = migrations/*.sql (ADR-008). schema.sql is the reviewed
+    // baseline mirror: 001_initial.sql must equal schema.sql + bookkeeping block.
+    const schema = readFileSync(join(root, "packages/storage/schema.sql"), "utf8");
+    const mig = readFileSync(join(root, "packages/storage/migrations/001_initial.sql"), "utf8");
+    assert.ok(mig.startsWith(schema), "migration body diverged from schema.sql mirror");
+    const bookkeeping = mig.slice(schema.length).trim();
+    assert.match(bookkeeping, /^--.*\nINSERT OR IGNORE INTO schema_migrations \(version, name\) VALUES \(1, '001_initial'\);$/s,
+      "only schema_migrations bookkeeping may follow the schema body");
+    for (const t of TABLES) assert.ok(mig.includes(`CREATE TABLE IF NOT EXISTS ${t}`), t);
+  });
+
+  it("migration self-records idempotently (INSERT OR IGNORE)", () => {
+    const mig = readFileSync(join(root, "packages/storage/migrations/001_initial.sql"), "utf8");
+    assert.match(mig, /INSERT OR IGNORE INTO schema_migrations/, "re-applying must not fail on the version PK");
+  });
+
   it("declares only vault-ref columns for credentials", () => {
     assert.deepEqual(SECRET_REF_COLUMNS, [{ table: "provider_credentials", column: "vault_ref" }]);
     const sql = readFileSync(join(root, "packages/storage/schema.sql"), "utf8");

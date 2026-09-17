@@ -7,7 +7,8 @@ troubleshooting. The full guide ships with the Phase 7 desktop app.
 Today (Phase 0): the repo is a security foundation + kernels. Operators can run:
 
 ```bash
-npm test                 # 141 unit + security tests
+npm test                 # unit + security + integration suites
 npm run check:secrets    # offline secret scan
+npm run db:migrate       # apply SQLite migrations (idempotent)
 node apps/cli/src/cli.ts doctor
 ```

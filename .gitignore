@@ -12,9 +12,9 @@ out/
 *.tsbuildinfo
 
 # Tauri / Rust (Phase 7+)
+# NOTE: Cargo.lock IS committed — signed/reproducible builds require pinned deps (Plan §42/47).
 apps/desktop/src-tauri/target/
 **/*.rs.bk
-Cargo.lock
 
 # Test / coverage
 coverage/

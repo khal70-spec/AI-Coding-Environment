@@ -19,15 +19,31 @@ function help(): string {
   ].join("\n");
 }
 
+// Minimum runtime: type-stripping (.ts execution) is flag-free from Node 22.18 on.
+const MIN_NODE = { major: 22, minor: 18 };
+
+function nodeOk(version: string): boolean {
+  const [maj = "0", min = "0"] = version.split(".");
+  return Number(maj) > MIN_NODE.major || (Number(maj) === MIN_NODE.major && Number(min) >= MIN_NODE.minor);
+}
+
 async function doctor(): Promise<{ ok: boolean; lines: string[] }> {
   const lines: string[] = [];
-  const major = Number(process.versions.node.split(".")[0]);
-  lines.push(`node: ${process.version} ${major >= 20 ? "OK" : "FAIL (need >= 20)"}`);
+  const nodeGood = nodeOk(process.versions.node);
+  lines.push(
+    `node: ${process.version} ${nodeGood ? "OK" : `FAIL (need >= ${MIN_NODE.major}.${MIN_NODE.minor} — type-stripping)`}`,
+  );
   const { access } = await import("node:fs/promises");
   const { join, dirname } = await import("node:path");
   const { fileURLToPath } = await import("node:url");
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-  for (const p of ["packages/core/src/index.ts", "packages/policy/src/index.ts", "packages/storage/schema.sql"]) {
+  const layout = [
+    "packages/core/src/index.ts",
+    "packages/policy/src/index.ts",
+    "packages/storage/schema.sql",
+    "packages/storage/migrations/001_initial.sql",
+  ];
+  for (const p of layout) {
     try {
       await access(join(root, p));
       lines.push(`${p}: OK`);
@@ -35,7 +51,7 @@ async function doctor(): Promise<{ ok: boolean; lines: string[] }> {
       lines.push(`${p}: MISSING`);
     }
   }
-  const ok = major >= 20 && lines.every((l) => !l.includes("MISSING") && !l.includes("FAIL"));
+  const ok = nodeGood && lines.every((l) => !l.includes("MISSING") && !l.includes("FAIL"));
   return { ok, lines };
 }
 

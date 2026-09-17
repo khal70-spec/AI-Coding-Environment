@@ -1,6 +1,8 @@
-# Gitleaks config — supplements scripts/check-secrets.mjs (which still scans
-# tests/unit + most of tests/security strictly; only the two shape-fixture files
-# below escape both scanners and need reviewer care on every touch).
+# Gitleaks config — complements scripts/check-secrets.mjs. Keep both scanners aligned:
+# a file may escape a scanner ONLY when it defines detection patterns (which necessarily
+# resemble secrets) or holds declared synthetic fixtures (TESTONLY/EXAMPLE markers).
+# Any new such file must be allowlisted in BOTH this config and check-secrets.mjs,
+# and named in docs/security/secret-policy.md — reviewer care required on every touch.
 [extend]
 useDefault = true
 
@@ -12,9 +14,9 @@ paths = [
   '''scripts/check-secrets\.mjs''',
 ]
 
-# Declared synthetic fixtures only (TESTONLY/EXAMPLE-marked, synthetic values).
+# Declared synthetic fixtures only (TESTONLY-marked shapes used by security tests).
 [[allowlists]]
 description = "declared test fixtures"
 paths = [
-  '''tests/.*''',
+  '''tests/security/secret-redaction\.test\.mjs''',
 ]

@@ -13,6 +13,6 @@
     "migrations"
   ],
   "scripts": {
-    "test": "node --test \"../../../tests/unit/storage/**/*.test.mjs\""
+    "test": "node --test \"../../tests/unit/storage/**/*.test.mjs\""
   }
 }

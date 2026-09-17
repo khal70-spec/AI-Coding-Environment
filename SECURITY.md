@@ -43,8 +43,12 @@ SLSA/SBOM practices where applicable (Plan §45).
 - Never commit secrets; `npm run check:secrets` must pass on every PR.
 - Never weaken safety checks to make tests pass.
 - Security-sensitive PRs need an ADR or threat-model touch-up plus `tests/security/` coverage.
-- CI security gates (build, tests, lint, typecheck, `npm audit`, secret scan, SAST)
-  must pass before merge. See `.github/workflows/ci.yml`.
+- CI security gates must pass before merge: tests (unit/security/integration),
+  offline secret scan, `npm audit` (high+), migration idempotency. The workflow is
+  authored at `scripts/ci/ci.yml` (pending installation to `.github/workflows/` —
+  see `scripts/ci/README.md`; run the local equivalent until it lands).
+  Lint + typecheck become blocking in Phase 1 (configs land with compiled packages);
+  SAST/OSV/SBOM gates become blocking in Phase 8 (see `docs/security/dependency-policy.md`).
 
 ## Telemetry
 

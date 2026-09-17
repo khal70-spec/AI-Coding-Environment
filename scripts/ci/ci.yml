@@ -1,0 +1,67 @@
+# CI — security gates per Plan §47 and docs/security/dependency-policy.md.
+#
+# Blocking now (Phase 0): tests (unit + security + integration), per-package tests,
+# offline secret scan, npm audit (high+), CLI doctor, SQLite migration idempotency.
+# Phase 1: real lint + typecheck (scripts are honest no-ops until the configs land).
+# Phase 8 (dependency-policy): OSV-Scanner + Semgrep become blocking, Gitleaks + SBOM
+# join, and action references are pinned to full-length SHAs (supply-chain hardening).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: the workflow only reads the checkout.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-gates:
+    name: security gates (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22.x", "24.x"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: install (lockfile-pinned)
+        run: npm ci
+
+      - name: tests — unit + security + integration
+        run: npm test
+
+      - name: tests — per-package workspace scripts
+        run: npm run test:workspaces
+
+      - name: secret scan (offline, blocking)
+        run: npm run check:secrets
+
+      - name: dependency audit (high+, blocking)
+        run: npm run audit:deps
+
+      - name: lint (Phase 1 — soft gate)
+        run: npm run lint
+
+      - name: typecheck (Phase 1 — soft gate)
+        run: npm run typecheck
+
+      - name: CLI doctor (offline self-check)
+        run: node apps/cli/src/cli.ts doctor
+
+      - name: SQLite migrations apply + idempotent re-run
+        run: |
+          DB_PATH="$RUNNER_TEMP/aice-ci.db" node scripts/db-migrate.mjs
+          DB_PATH="$RUNNER_TEMP/aice-ci.db" node scripts/db-migrate.mjs | tee /tmp/migrate-rerun.log
+          grep -q "0 applied, 1 skipped" /tmp/migrate-rerun.log
