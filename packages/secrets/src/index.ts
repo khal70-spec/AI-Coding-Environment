@@ -88,3 +88,14 @@ export class MemoryVault implements SecretVault {
     return this.store_.has(ref);
   }
 }
+
+// ─────────────────────────────── Phase 2: OS adapters + fallback ───────────────────────────────
+export {
+  EncryptedFileVault,
+  LinuxSecretToolVault,
+  DarwinSecurityVault,
+  realVaultExec,
+} from "./adapters.ts";
+export type { VaultExec } from "./adapters.ts";
+export { detectVault, defaultConfigDir } from "./detect.ts";
+export type { VaultSelection } from "./detect.ts";

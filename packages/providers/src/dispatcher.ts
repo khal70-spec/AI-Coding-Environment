@@ -34,7 +34,9 @@ export interface ProviderEvent {
     | "provider.dispatch.completed"
     | "provider.dispatch.denied"
     | "provider.dispatch.failed"
-    | "provider.connection.tested";
+    | "provider.connection.tested"
+    | "provider.route.hop"
+    | "provider.route.exhausted";
   readonly providerId: string;
   readonly model?: string;
   readonly code?: string;

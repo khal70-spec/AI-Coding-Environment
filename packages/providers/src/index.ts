@@ -179,3 +179,14 @@ export type {
   ProviderEvent,
   ProviderEventSink,
 } from "./dispatcher.ts";
+
+// ─────────────────────────────── Phase 2: registry + router ───────────────────────────────
+export {
+  discoverIntoDb,
+  probeModel,
+  probeAll,
+  DbModelRegistry,
+} from "./registry.ts";
+export type { DiscoveryReport, ProbeReport } from "./registry.ts";
+export { FailoverRouter, DEFAULT_HEALTH_TTL_MS } from "./router.ts";
+export type { Candidate, RouterDeps } from "./router.ts";

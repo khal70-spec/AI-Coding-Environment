@@ -243,6 +243,15 @@ export class ModelsDao {
     );
   }
 
+  listAll(): readonly ModelRow[] {
+    return Object.freeze(
+      this.db
+        .prepare("SELECT * FROM models ORDER BY provider_id, display_name")
+        .all()
+        .map(toModelRow),
+    );
+  }
+
   setStatus(id: string, status: string): void {
     if (!MODEL_STATUSES.includes(status)) throw new Error(`invalid model status: ${status}`);
     this.db

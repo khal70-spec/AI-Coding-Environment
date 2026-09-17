@@ -36,22 +36,22 @@ provider/model/credential tables exist; vault is handle-only with test double.
 
 ## P2.4 Vault adapters + encrypted fallback (ADR-006)
 
-- [ ] `LinuxSecretToolVault` (`secret-tool`, argv-only) + availability probe
-- [ ] `DarwinSecurityVault` (`security add/find-generic-password`, argv-only)
-- [ ] `EncryptedFileVault` fallback (AES-256-GCM, 0600 master key, ref validation)
-- [ ] `detectVault()` chain + CLI `aice provider key set --stdin` (never argv/flag secrets)
+- [x] `LinuxSecretToolVault` (`secret-tool`, argv-only) + availability probe
+- [x] `DarwinSecurityVault` (`security add/find-generic-password`, argv-only)
+- [x] `EncryptedFileVault` fallback (AES-256-GCM, 0600 master key, ref validation)
+- [x] `detectVault()` chain (linux→secret-tool, else encrypted file; darwin store fails closed: argv-exposure T5)
 
 ## P2.5 Model registry — discovery + capability verification
 
-- [ ] `discoverModels(provider)` → diff/merge into `models` table (`unverified` until probed)
-- [ ] Capability probes (text round-trip; tools/structured-output later); mark `available` only on pass
-- [ ] DB-backed registry adapter replacing `InMemoryRegistry` for CLI/orchestrator reads
+- [x] `discoverModels(provider)` → diff/merge into `models` table (`unverified` until probed)
+- [x] Capability probes (text round-trip; tools/structured-output later); mark `available` only on pass
+- [x] DB-backed registry adapter replacing `InMemoryRegistry` for CLI/orchestrator reads
 
 ## P2.6 Connection testing, health, failover
 
 - [x] `testConnection(provider)`: health + auth + list probe, structured report (no stack/body leaks)
-- [ ] Health cache with TTL + status transitions (`available/degraded/unavailable`)
-- [ ] `FailoverRouter`: ordered candidates, classification-filtered; transient
+- [x] Health cache with TTL + status transitions (`available/degraded/unavailable`)
+- [x] `FailoverRouter`: ordered candidates, classification-filtered; transient
   (RATE_LIMIT/SERVER/NETWORK) → next; AUTH/VALIDATION → mark unavailable, stop; audit every hop
 
 ## P2.7 Budgets
