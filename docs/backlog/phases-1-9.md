@@ -115,7 +115,31 @@ implementer, tester, security reviewer, code reviewer, docs/release agents. Test
 - Gate: 565/565 tests, lint 0, tsc 0, security-gate GREEN →
   `docs/development/phase-8-gate-review.md`
 
-## Phase 9 — Production readiness (Plan §50/51)
+## Phase 9 — Production readiness (Plan §50/51) — DONE (POC-scope release lane)
 
-Signed builds + auto-update, crash recovery, backup/migrate, perf + a11y, full docs
-(§49), release checklist, Definition-of-Done sign-off, first-release target workflow (§53).
+- [x] P9.1 Crash recovery: 40× SIGKILL writer storm against the live CLI (integrity/fk
+  clean, 25 complete-or-absent survivors), kill-then-reopen WAL durability, bridge
+  server death mid-POST + restart on shared db (`tests/integration/crash-recovery.test.mjs`)
+- [x] P9.2 Backup/migrate: verified-online backup (`scripts/db-backup.mjs`), guarded
+  restore (candidate verify → safety copy → atomic replace; corrupted candidates
+  refused with a message), migration additive-only policy lint M1-M4
+  (`scripts/migration-check.mjs`), idempotency proof (`tests/integration/backup-restore.test.mjs`)
+- [x] P9.3 Perf budgets + a11y static gate: measured floors with evidence printed
+  (`tests/integration/perf-budgets.test.mjs`; audit bulk 13.7ms/1000, bridge median
+  1.48ms, CLI ~230ms); `scripts/a11y-check.mjs` A1-A9 with 2 real violations found
+  and fixed in the SPA (keyboard-unreachable row handlers → roving tabindex + Enter/Space
+  + role/aria + :focus-visible outlines)
+- [x] P9.4 Deterministic release artifact: `scripts/release-prepare.mjs` (git archive
+  HEAD-only, mtime-neutral gzip, clean-tree gate) + `scripts/release-verify.mjs`
+  (sums + byte-identical rebuild proof). Code-signing identity + auto-update deferred
+  with the native shell (DoD review)
+- [x] P9.5 Full docs (§49): runbooks (backup-restore / crash-recovery / upgrade),
+  release checklist + DoD review, README status to Phase 10 release candidate
+- [x] P9.6 Release checklist + readiness matrix `scripts/release-check.mjs` R1-R10
+  (1:1 rows to `docs/release/release-checklist.md`) + `docs/release/dod-review.md`
+- [x] P9.7 §53 golden workflow: doctor → provider → model → project → task →
+  governed walk to MERGED through all brakes (plan/final approval, checkpoint, tests+scans,
+  independent review) → bridge cross-check → audit monotonic → backup/restore
+  (`tests/integration/release-workflow.test.mjs` 4/4)
+- Gates: 580/580 tests, lint 0, tsc 0, security-gate GREEN →
+  `docs/development/phase-9-gate-review.md`

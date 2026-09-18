@@ -11,17 +11,20 @@ run tests + security checks, review the diff, and safely roll back.
 
 ## Status
 
-**Phase 1 — Core runtime** (in progress). Phase 0 (security & architecture foundation)
-is complete and tagged `phase-0-complete`
-([gate review](./docs/development/phase-0-gate-review.md)).
+**Phases 0–9 complete** — release candidate `phase-9-complete` (see
+[DoD review](./docs/release/dod-review.md) + [readiness matrix](./docs/release/release-checklist.md)).
 
 Working today, fully offline: task state machine persisted to SQLite with an append-only
 audit trail, risk-gated approvals, checkpoint → isolated-git-worktree task workspaces,
-guarded (argv-only, redacted) Git execution, and the `aice` operator CLI
-(`project`/`task`/`approve`/`checkpoint`/`workspace`/`verify`/`review`/`audit`).
+guarded (argv-only, redacted) Git execution, provider/model registry with budget lanes,
+agent composer (script-replay + local-openai adapters), context engine
+(index/pack/route), MCP + skills containment, hardened desktop bridge UI, and the
+`aice` operator CLI. Security posture is machine-enforced:
+`npm run security:gate` (secrets/dep-audit/supply-chain/SAST) + crash-recovery,
+backup/restore, deterministic release artifacts, and the §53 golden-workflow suite.
 
-We build security first, UI last. See [`docs/backlog/`](./docs/backlog/) for the
-ordered implementation backlog and [`docs/adr/`](./docs/adr/) for decisions.
+See [`docs/backlog/`](./docs/backlog/) for the phase ledger and
+[`docs/adr/`](./docs/adr/) for decisions.
 
 ## Design principles
 

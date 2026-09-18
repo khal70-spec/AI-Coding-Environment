@@ -70,13 +70,17 @@ async function renderProjects(main) {
     el("tr", {}, el("th", {}, "name"), el("th", {}, "classification"), el("th", {}, "root path"), el("th", {}, "id")),
   );
   for (const p of state.projects) {
-    table.append(el("tr",
-      { class: p.id === state.projectId ? "flash" : "", onclick: () => { state.projectId = p.id; state.taskId = null; state.view = "tasks"; render(); } },
+    const openProject = () => { state.projectId = p.id; state.taskId = null; state.view = "tasks"; render(); };
+    const row = el("tr",
+      { class: p.id === state.projectId ? "flash" : "", role: "button", tabindex: "0", "aria-label": `open project ${p.name}`,
+        onclick: openProject,
+        onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openProject(); } } },
       el("td", {}, txt(p.name)),
       el("td", {}, tag("info", p.classification)),
       el("td", {}, txt(p.rootPath)),
       el("td", {}, el("code", {}, p.id)),
-    ).addEventListener("dblclick", () => {}));
+    );
+    table.append(row);
   }
   main.append(el("div", { class: "panel" }, el("h3", {}, `projects (${state.projects.length})`,), form, table));
 }
@@ -174,7 +178,10 @@ async function renderAgents(main) {
     for (const t of tasks) {
       const sessions = await bridge("agents.sessions", { taskId: t.id });
       for (const ar of sessions) {
-        table.append(el("tr", { onclick: () => { state.projectId = p.id; state.taskId = t.id; state.view = "tasks"; render(); } },
+        const openSession = () => { state.projectId = p.id; state.taskId = t.id; state.view = "tasks"; render(); };
+        table.append(el("tr", { role: "button", tabindex: "0", "aria-label": `open session for task ${ar.phase}`,
+          onclick: openSession,
+          onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSession(); } } },
           el("td", {}, tag("info", ar.phase)), el("td", {}, stateTag(ar.status)),
           el("td", {}, `${ar.rounds}/${ar.toolCalls}/${ar.denials}`),
           el("td", {}, txt(ar.modelId ?? "script-replay")),

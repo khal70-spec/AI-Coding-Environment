@@ -10,7 +10,12 @@ const ALLOWLIST_FILES = new Set([
   "scripts/check-secrets.mjs",
   "packages/security/src/secret-patterns.ts",
   "tests/security/secret-redaction.test.mjs",
+  // Phase 8/9 red-team & fuzz fixtures — fake-token carriers (TESTONLY-marked strings)
+  "tests/security/fuzz-paths-redact.test.mjs",
+  "tests/security/redteam-injection.test.mjs",
+  "tests/security/security-gate.test.mjs",
   "docs/security/secret-policy.md",
+  "docs/security/threat-model.md",
 ]);
 
 // Patterns intentionally match REAL secret shapes; fixtures must use
