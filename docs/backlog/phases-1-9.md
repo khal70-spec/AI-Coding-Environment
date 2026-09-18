@@ -28,11 +28,21 @@ Agent abstraction + manifests, orchestrator, investigator (read-only), architect
 implementer, tester, security reviewer, code reviewer, docs/release agents. Tests: E2E
 `task → plan → approval → implement → test → review` on fixture repos.
 
-## Phase 5 — Context & routing (Plan §54.20–21)
+## Phase 5 — Context & routing (Plan §54.20–21) — IN FLIGHT
 
-Repo indexing (map/symbols/deps), context selection + budget trim, secret filtering,
-task classifier, deterministic router, escalation, multi-model debate/vote. Tests:
-retrieval quality, filter recall, routing determinism.
+- [x] P5.1 repo index: lexical walk (symlinks never followed), regex symbol
+  extraction (ts/py/c#/php), internal-import edges, secret-path exclusion,
+  `.aice/context/index.json` persistence — `packages/context/src/repo-index.ts`
+- [x] P5.2 retrieval + budget trim: deterministic scoring (path terms, symbol
+  names, import adjacency, operator hints), precedence-pinned, `fitBudget` pack —
+  `retrieval.ts`; retrieval-quality + determinism fixtures
+- [x] P5.3 secret filtering: cap+redact filterChunkText lane, redacted-hash
+  admission, canary recall measured against detector coverage
+- [x] P5.4 classifier + deterministic router + escalation + debate/vote —
+  `routing.ts` (rules: clearance→restricted-local-only→high-risk-strong→kind→cost,
+  id-tiebreak; ties escalate, never silently resolved)
+- [ ] P5.5 CLI wiring: `aice context build` (index+pack persisted) + `aice route`
+  (decision against live registry) — then Phase 5 gate; tests: CLI-level smoke.
 
 ## Phase 6 — MCP & skills (Plan §54.22–23, §17/40/41)
 

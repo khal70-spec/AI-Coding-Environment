@@ -38,3 +38,14 @@ export { buildRepoIndex, persistRepoIndex, loadRepoIndex, extractFromText, isSec
 export type { Language, FileEntry, SymbolEntry, Edge, RepoIndex } from "./repo-index.ts";
 export { rank, packWorkspace, taskTokens, filterChunkText, DEFAULT_CHUNK_MAX_BYTES, APPROX_CHARS_PER_TOKEN } from "./retrieval.ts";
 export type { RetrieveQuery, PackResult, ScoredFile } from "./retrieval.ts";
+export { classifyTask, routeTask, escalate, debateVote, ROUTE_UNAVAILABLE } from "./routing.ts";
+export type {
+  TaskKind,
+  TaskFacts,
+  RouteModel,
+  RouteProvider,
+  RouteInput,
+  RouteDecision,
+  DebateCandidate,
+  DebateResult,
+} from "./routing.ts";
