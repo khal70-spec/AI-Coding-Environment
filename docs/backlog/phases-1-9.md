@@ -46,10 +46,27 @@ implementer, tester, security reviewer, code reviewer, docs/release agents. Test
   registry; exit 1 on honest "(none)" lane); status vocabulary aligned with
   registry (available|degraded); CLI-spawn smoke tests incl. restricted pinning
 
-## Phase 6 — MCP & skills (Plan §54.22–23, §17/40/41)
+## Phase 6 — MCP & skills (Plan §54.22–23, §17/40/41) — IN FLIGHT → DONE (POC lanes)
 
-MCP registry + OAuth + permissions + audit; skill registry + integrity + permission review;
-plugin framework + install consent. Tests: malicious-server containment, elevation blocks.
+- [x] P6.1 MCP registry (dao-mcp: McpServersDao + PermissionsDao) + install
+  validation hardened (wildcards forbidden in allow AND deny; credentials only
+  via vault://; high-trust requires recorded review; http = loopback-only)
+- [x] P6.2 contained client: JSON-RPC 2.0 over http(s)+stdio; endpoint re-checks
+  at call time (defense in depth); byte caps, timeouts, redirect refusal, no
+  shells (argv-only); `networkAllow` self-pinning (loopback host:port exact; https
+  remote via SSRF blocklist); kill switch per server
+- [x] P6.3 skills: whole-bundle sha256 (paths+bytes canonical order, symlinks
+  refused), namespaced permission manifests; SkillsDao p-in-pending→approved|
+  blocked; tamper ⇒ auto-BLOCKED (mismatch can never be approved through)
+- [x] P6.4 CLI: `aice mcp add|list|remove|enable|disable|invoke` with gate
+  decision before any socket (invokes audited content-free); `aice skill
+  add|list|review|approve|gate` lane (review=consent surface)
+- [x] tests: malicious-server containment matrix (oversize/redirect/dead/silent/
+  inert-argv), elevation blocks (deny-ladder incl. perms tighten-only)
+- OAuth for MCP servers: deferred (local/self-hosted trust model first — remote
+  OAuth lands with remote-server support, post-Phase 6 POC)
+- plugin framework: MCP servers ARE the plugin registry in this POC; a fuller
+  marketplace surface lands after the UI (Phase 7+).
 
 ## Phase 7 — Desktop UI (Plan §54.24–25, §4/31)
 

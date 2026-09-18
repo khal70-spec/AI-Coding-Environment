@@ -11,6 +11,8 @@ export { ProvidersDao, ProviderCredentialsDao, ModelsDao } from "./dao-providers
 export { TestResultsDao, FindingsDao } from "./dao-findings.ts";
 export type { FindingRow, FindingSeverity, FindingStatus, TestResultRow } from "./dao-findings.ts";
 export { BudgetsDao, BudgetEventsDao } from "./dao-budgets.ts";
+export { McpServersDao, PermissionsDao, SkillsDao } from "./dao-mcp.ts";
+export type { McpServerRow, PermissionRow, SkillRow } from "./dao-mcp.ts";
 export type { ProviderRow, CredentialRow, ModelRow, ProviderUpsert, ModelUpsert } from "./dao-providers.ts";
 export type {
   BudgetRow, BudgetUpsert, BudgetEventRow, BudgetEventAppend, SpendSums, BudgetScope, BudgetWindow,
@@ -41,6 +43,7 @@ export const TABLES: readonly string[] = Object.freeze([
   "budgets",
   "budget_events",
   "agent_runs",
+  "skills",
 ]);
 
 /** Forward-only migrations, applied in order. */
@@ -49,6 +52,7 @@ export const MIGRATIONS: readonly { version: number; file: string }[] = Object.f
   { version: 2, file: "002_provider_config.sql" },
   { version: 3, file: "003_budgets.sql" },
   { version: 4, file: "004_agent_runs.sql" },
+  { version: 5, file: "005_skills.sql" },
 ]);
 
 /** Tables that must never contain secret values (enforced by DAO review + tests). */

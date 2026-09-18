@@ -45,6 +45,7 @@ describe("storage", () => {
       { version: 2, file: "002_provider_config.sql" },
       { version: 3, file: "003_budgets.sql" },
       { version: 4, file: "004_agent_runs.sql" },
+      { version: 5, file: "005_skills.sql" },
     ]);
   });
 

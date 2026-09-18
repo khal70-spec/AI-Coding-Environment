@@ -6,7 +6,7 @@
 // (stdin only), model discovery + capability probes, budgets (hard-block).
 // Everything exits non-zero on denial — usable directly as a CI gate.
 
-const VERSION = "0.5.0-phase4";
+const VERSION = "0.6.0-phase6";
 
 // ---------------------------------------------------------------- help / doctor
 function help(): string {
@@ -160,6 +160,7 @@ function enumFlag<T extends string>(
 
 // ---------------------------------------------------------------- services
 import { resolve, join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { existsSync, statSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import {
   openDatabase,
@@ -200,6 +201,8 @@ import { GIT_TOOLS } from "../../../packages/tools/src/git-tools.ts";
 import { TEST_RUNNER_TOOLS } from "../../../packages/tools/src/test-runner-tool.ts";
 import { BUILTIN_MANIFESTS } from "../../../packages/agents/src/index.ts";
 import { buildRepoIndex, persistRepoIndex, packWorkspace } from "../../../packages/context/src/index.ts";
+import { McpServersDao, PermissionsDao, SkillsDao } from "../../../packages/storage/src/index.ts";
+import { validateMcpConfig, decideMcpCall, McpClient, parseSkillManifest, digestSkillBundle, decideSkillUse } from "../../../packages/mcp/src/index.ts";
 import { classifyTask, routeTask } from "../../../packages/context/src/routing.ts";
 import { investigate } from "../../../packages/agents/src/investigator.ts";
 import { architectPlan } from "../../../packages/agents/src/architect.ts";
@@ -235,6 +238,9 @@ interface Services {
   budgets: BudgetsDao;
   bEvents: BudgetEventsDao;
   agentRuns: AgentRunsDao;
+  mcpServers: McpServersDao;
+  permissions: PermissionsDao;
+  skills: SkillsDao;
 }
 function openServices(dbPath: string): Services {
   const opened = openDatabase(dbPath);
@@ -256,6 +262,9 @@ function openServices(dbPath: string): Services {
     opened, projects, tasks, runs, workspaces, audit, testResults, findings, engine, wservice,
     providers, creds, models, budgets, bEvents,
     agentRuns: new AgentRunsDao(opened.db),
+    mcpServers: new McpServersDao(opened.db),
+    permissions: new PermissionsDao(opened.db),
+    skills: new SkillsDao(opened.db),
   };
 }
 
@@ -315,6 +324,12 @@ function configForProvider(s: Services, providerId: string): ProviderConfig {
     credentialRef: credRow?.vaultRef,
     config,
   };
+}
+
+function csvFlag(flags: ReadonlyMap<string, string | true>, name: string): readonly string[] {
+  const v = flagString(flags, name);
+  if (v === undefined) return Object.freeze([]);
+  return Object.freeze(v.split(",").map((x) => x.trim()).filter((x) => x !== ""));
 }
 
 async function readAllStdin(limitBytes = 64 * 1024): Promise<string> {
@@ -1169,6 +1184,189 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           ].join("\n"),
         );
         return decision.modelId === "(none)" ? 1 : 0;
+      }
+
+      case "mcp": {
+        const sub = pos[0];
+        if (sub === "add") {
+          const name = needFlag(global.flags, "name");
+          const transport = enumFlag(global.flags, "transport", ["stdio", "http", "sse"] as const);
+          const toolsAllow = csvFlag(global.flags, "tools-allow");
+          const toolsDeny = csvFlag(global.flags, "tools-deny");
+          const networkAllow = csvFlag(global.flags, "network-allow");
+          const trust = enumFlag(global.flags, "trust", ["low", "medium", "high"] as const, "low");
+          const audited = global.flags.get("audited") === true;
+          const command = csvFlag(global.flags, "command");
+          const url = flagString(global.flags, "url");
+          const credentialRef = flagString(global.flags, "credential-ref");
+          const mcpId = randomUUID();
+          const cfg = {
+            id: mcpId,
+            name,
+            transport,
+            trust,
+            toolsAllow,
+            toolsDeny,
+            resourcesAllow: Object.freeze([]),
+            networkAllow,
+            audited,
+            ...(url !== undefined ? { url } : {}),
+            ...(command.length > 0 ? { command } : {}),
+            ...(credentialRef !== undefined ? { credentialRef } : {}),
+          };
+          // install-level validation BEFORE persistence (fail closed)
+          const errors = validateMcpConfig(cfg);
+          if (errors.length > 0) {
+            out.err("CONFIG_INVALID", errors.join("; "));
+            return 1;
+          }
+          const id = s.mcpServers.upsert({ id: mcpId, name, transport, trust, configJson: JSON.stringify(cfg) });
+          s.audit.append({ actor, action: "mcp.add", target: id, decision: "allow", detail: { name, transport, trust, toolsAllow: toolsAllow.length, toolsDeny: toolsDeny.length, networkAllow, commandCount: command.length, urlHost: url !== undefined ? new URL(url).hostname : null } });
+          out.print({ id, name, transport, trust }, `mcp server ${id} "${name}" (${transport}) trust=${trust} [validated]`);
+          return 0;
+        }
+        if (sub === "list") {
+          const rows = s.mcpServers.list();
+          out.print(rows, rows.map((r) => `${r.id}\t${r.enabled ? "enabled" : "disabled"}\t${r.trust}\t${r.transport}\t${r.name}`).join("\n"));
+          return 0;
+        }
+        if (sub === "remove") {
+          const id = pos[1] ?? throwUsage("mcp remove <id>");
+          const row = s.mcpServers.get(id);
+          if (row === undefined) throw new CliError("NOT_FOUND", `unknown mcp server: ${id}`);
+          s.mcpServers.remove(id);
+          s.audit.append({ actor, action: "mcp.remove", target: id });
+          out.print({ id }, `mcp server ${id} removed (permission rows cleaned)`);
+          return 0;
+        }
+        if (sub === "enable" || sub === "disable") {
+          const id = pos[1] ?? throwUsage(`mcp ${sub} <id>`);
+          const row = s.mcpServers.get(id);
+          if (row === undefined) throw new CliError("NOT_FOUND", `unknown mcp server: ${id}`);
+          s.mcpServers.setEnabled(id, sub === "enable");
+          s.audit.append({ actor, action: `mcp.${sub}`, target: id });
+          out.print({ id, enabled: sub === "enable" }, `mcp server ${id} ${sub}d`);
+          return 0;
+        }
+        if (sub === "invoke") {
+          const id = pos[1] ?? throwUsage("mcp invoke <id> --tool T [--args-json J]");
+          const row = s.mcpServers.get(id);
+          if (row === undefined) throw new CliError("NOT_FOUND", `unknown mcp server: ${id}`);
+          const tool = needFlag(global.flags, "tool");
+          let args: unknown[] = [];
+          const argsJson = flagString(global.flags, "args-json");
+          if (argsJson !== undefined) {
+            try {
+              const a = JSON.parse(argsJson);
+              if (!Array.isArray(a)) throw new Error("not-array");
+              args = a;
+            } catch {
+              throw new CliError("USAGE", "--args-json must be a JSON array");
+            }
+          }
+          let cfg;
+          try {
+            cfg = { ...JSON.parse(row.configJson), id: row.id };
+          } catch {
+            throw new CliError("INVALID_CONFIG", `mcp server ${id} config_json unreadable`);
+          }
+          const permRows = s.permissions.listFor(`mcp:${id}`);
+          const decision = decideMcpCall({ server: cfg, enabled: row.enabled, permissionRows: permRows, tool, args });
+          if (!decision.allowed) {
+            s.audit.append({ actor, action: "mcp.invoke", target: id, decision: "deny", detail: { tool, code: decision.code, reason: decision.reason } });
+            out.err(decision.code, `${decision.reason} (mcp ${id}, tool ${tool})`);
+            return 1;
+          }
+          const res = await new McpClient({}).call(cfg, "tools/call", { name: tool, arguments: args });
+          s.audit.append({ actor, action: "mcp.invoke", target: id, decision: res.ok ? "allow" : "deny", detail: { tool, lane: res.lane, ok: res.ok, error: res.error ?? null } });
+          if (!res.ok) {
+            out.err("MCP_TRANSPORT", res.error ?? "transport failed");
+            return 1;
+          }
+          out.print({ ok: true, result: res.result }, `mcp ${id} tool=${tool} ok → ${JSON.stringify(res.result).slice(0, 400)}`);
+          return 0;
+        }
+        return throwUsage("mcp add|list|remove|enable|disable|invoke");
+      }
+
+      case "skill": {
+        const sub = pos[0];
+        if (sub === "add") {
+          const path = pos[1] ?? throwUsage("skill add <path>");
+          const dir = resolve(path);
+          if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new CliError("NOT_A_DIRECTORY", `skill path is not a dir: ${path}`);
+          const d = digestSkillBundle(dir);
+          if (d.error !== undefined) throw new CliError("BUNDLE_INVALID", d.error);
+          const { manifest, errors } = parseSkillManifest(dir);
+          if (errors.length > 0) throw new CliError("MANIFEST_INVALID", errors.join("; "));
+          const mf = manifest as { name: string; version?: string; permissions: readonly string[] };
+          const row = s.skills.register({
+            name: mf.name,
+            ...(mf.version !== undefined ? { version: mf.version } : {}),
+            sourcePath: dir,
+            sha256: d.sha256,
+            permissionsJson: JSON.stringify(mf.permissions),
+          });
+          s.audit.append({ actor, action: "skill.add", target: row.id, decision: "allow", detail: { name: mf.name, digest: d.sha256, files: d.files.length, permissions: mf.permissions } });
+          out.print(
+            { id: row.id, name: mf.name, digest: d.sha256, status: row.status },
+            `skill ${row.id} "${mf.name}" digest=${d.sha256.slice(0, 16)}… [${row.status}] — review before approve`,
+          );
+          return 0;
+        }
+        if (sub === "list") {
+          const rows = s.skills.list();
+          out.print(rows, rows.map((r) => `${r.id}\t${r.status}\t${r.name}\t${r.sha256.slice(0, 12)}`).join("\n"));
+          return 0;
+        }
+        if (sub === "review") {
+          const id = pos[1] ?? throwUsage("skill review <id>");
+          const row = s.skills.get(id);
+          if (row === undefined) throw new CliError("NOT_FOUND", `unknown skill: ${id}`);
+          const perms = JSON.parse(row.permissionsJson) as string[];
+          console.log(`skill ${row.id} ${row.name} v${row.version ?? "?"}`);
+          console.log(`  path:    ${row.sourcePath}`);
+          console.log(`  digest:  ${row.sha256}`);
+          console.log(`  status:  ${row.status}${row.reviewedBy !== null ? ` by ${row.reviewedBy}` : ""}`);
+          console.log("  declared permissions:");
+          for (const p of perms) console.log(`    - ${p}`);
+          if (perms.length === 0) console.log("    (none — read-only bundle)");
+          console.log("  files are executed ONLY if this digest matches at gate time.");
+          s.audit.append({ actor, action: "skill.review", target: id, decision: "allow" });
+          return 0;
+        }
+        if (sub === "approve") {
+          const id = pos[1] ?? throwUsage("skill approve <id>");
+          const row = s.skills.get(id);
+          if (row === undefined) throw new CliError("NOT_FOUND", `unknown skill: ${id}`);
+          const live = digestSkillBundle(row.sourcePath);
+          if (live.error !== undefined || live.sha256 !== row.sha256) {
+            s.skills.setStatus(id, "blocked", actor);
+            s.audit.append({ actor, action: "skill.tamper-block", target: id, decision: "deny", detail: { recorded: row.sha256, live: live.sha256, error: live.error ?? null } });
+            out.err("TAMPER", `digest mismatch — skill ${id} BLOCKED (recorded ${row.sha256.slice(0, 12)} vs live ${live.sha256.slice(0, 12)})`);
+            return 1;
+          }
+          s.skills.setStatus(id, "approved", actor);
+          s.audit.append({ actor, action: "skill.approve", target: id, decision: "allow", detail: { digest: row.sha256 } });
+          out.print({ id, status: "approved" }, `skill ${id} approved (digest ${row.sha256.slice(0, 12)} matches live)`);
+          return 0;
+        }
+        if (sub === "gate") {
+          const id = pos[1] ?? throwUsage("skill gate <id>");
+          const row = s.skills.get(id);
+          if (row === undefined) throw new CliError("NOT_FOUND", `unknown skill: ${id}`);
+          const live = digestSkillBundle(row.sourcePath);
+          const use = decideSkillUse(row.status, live.error !== undefined ? "" : live.sha256, row.sha256);
+          if (!use.ok) {
+            s.audit.append({ actor, action: "skill.gate", target: id, decision: "deny", detail: { status: row.status, reason: use.reason } });
+            out.err("SKILL_GATE", use.reason);
+            return 1;
+          }
+          s.audit.append({ actor, action: "skill.gate", target: id, decision: "allow", detail: { digest: row.sha256 } });
+          out.print({ id, ok: true }, `skill ${id} usable (digest ${row.sha256.slice(0, 12)}, status approved)`);
+          return 0;
+        }
+        return throwUsage("skill add|list|review|approve|gate");
       }
 
       default:

@@ -209,3 +209,18 @@ CREATE TABLE IF NOT EXISTS agent_runs (
   created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id);
+
+CREATE TABLE IF NOT EXISTS skills (
+  id               TEXT PRIMARY KEY,
+  name             TEXT NOT NULL UNIQUE,
+  version          TEXT,
+  source_path      TEXT NOT NULL,
+  sha256           TEXT NOT NULL,
+  permissions_json TEXT NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'pending_review'
+    CHECK (status IN ('pending_review','approved','blocked')),
+  reviewed_by      TEXT,
+  reviewed_at      TEXT,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_skills_status ON skills(status);
