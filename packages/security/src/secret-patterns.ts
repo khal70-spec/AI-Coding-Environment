@@ -17,7 +17,7 @@ export const SECRET_PATTERNS: readonly SecretPattern[] = Object.freeze([
   p("openai", "\\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\\b", "g", "OpenAI-style key"),
   p("anthropic", "\\bsk-ant-[A-Za-z0-9_-]{10,}\\b", "g", "Anthropic-style key"),
   p("aws-access", "\\bAKIA[0-9A-Z]{16}\\b", "g", "AWS access key id"),
-  p("aws-secret", "\\baws_secret_access_key\\b\\s*[:=]\\s*\\S+", "gi", "AWS secret assignment"),
+  p("aws-secret", "\\baws_secret_access_key[\"']?\\s*[:=]\\s*\\S+", "gi", "AWS secret assignment"),
   p("github-token", "\\bgh[pousr]_[A-Za-z0-9_]{20,}\\b", "g", "GitHub token"),
   p("gitlab-token", "\\bglpat-[A-Za-z0-9_.-]{10,}\\b", "g", "GitLab token"),
   p("google-api", "\\bAIza[0-9A-Za-z_\\-]{30,}\\b", "g", "Google API key"),

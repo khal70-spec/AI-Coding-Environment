@@ -16,7 +16,7 @@ interface Rule {
 
 const RULES: readonly Rule[] = Object.freeze([
   { id: "ignore-instructions", severity: "high", re: /ignor(e|ing)\s+(all\s+)?(previous|prior|above|earlier|system)\s+instructions?/i },
-  { id: "override-safety", severity: "high", re: /(disregard|override|bypass|disable)\s+(all\s+)?(safety|security|policy|policies|guardrails|restrictions)/i },
+  { id: "override-safety", severity: "high", re: /(disregard|override|bypass|disable)\s+((all|any|the|prior|previous)\s+)?(safety|security|policy|policies|guardrails|restrictions)/i },
   { id: "jailbreak-persona", severity: "high", re: /\b(do\s+anything\s+now|developer\s+mode|jailbreak|unrestricted\s+mode|evil\s+assistant)\b/i },
   { id: "exfil-api-key", severity: "high", re: /(send|exfiltrat|leak|expose|output|print|reveal|return).{0,60}(api[_-]?key|secret|password|private[_-]?key|token)/i },
   { id: "system-prompt-steal", severity: "high", re: /(reveal|show|output|print|repeat).{0,40}(system\s+prompt|initial\s+instructions|hidden\s+instructions)/i },

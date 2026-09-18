@@ -19,7 +19,7 @@ const PATTERNS = [
   { name: "openai-key", re: /\bsk-(proj-)?[A-Za-z0-9_-]{20,}\b/ },
   { name: "anthropic-key", re: /\bsk-ant-[A-Za-z0-9_-]{10,}\b/ },
   { name: "aws-access-key", re: /\bAKIA[0-9A-Z]{16}\b/ },
-  { name: "aws-secret", re: /\baws_secret_access_key\b\s*[:=]\s*\S+/i },
+  { name: "aws-secret", re: /\baws_secret_access_key["\x27]?\s*[:=]\s*\S+/i },
   { name: "private-key-block", re: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
   { name: "github-token", re: /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/ },
   { name: "generic-api-key-assign", re: /\b(api[_-]?key|api[_-]?secret|access[_-]?token)\b\s*[:=]\s*["']?[A-Za-z0-9_\-./+]{16,}["']?/i },

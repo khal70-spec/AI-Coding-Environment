@@ -87,10 +87,33 @@ implementer, tester, security reviewer, code reviewer, docs/release agents. Test
 - Deferred: Tauri/React shell, diff viewer, marketplace UI, tray/notifications, DOM-level
   SPA test runner (gate review "Explicit deferrals")
 
-## Phase 8 — Security hardening (Plan §50)
+## Phase 8 — Security hardening (Plan §50) — DONE
 
-Threat-model audit, SAST/dep/secret gates blocking, fuzzing (IPC/parser/classifier),
-sandbox-escape tests, injection red-team, MCP/plugin abuse suites, supply-chain review.
+- [x] P8.1 Blocking gate `npm run security:gate` (secrets → dep-audit → supply-chain →
+  SAST-lite S1–S7), fail-loud proofs per lane (`tests/security/security-gate.test.mjs`:
+  each lane must exit non-zero with named evidence on a live planted violation and
+  restore green on cleanup)
+- [x] P8.2 Seeded-deterministic fuzz (`FUZZ_SEED` replay): bridge envelopes (300 rand +
+  120 structured + 100 traversal), command classifier + injection detector (determinism/
+  totality/recall/honesty properties), path containment (IO-narrows-lexical invariant,
+  homoglyphs), secret redaction (specimen recall + clean-text preservation)
+- [x] P8.3 Sandbox-escape suite (physical contagion proofs: symlink/dir-symlink/
+  traversal/backslash/device-path denials with side-effect ABSENCE off-jail; terminal
+  argv-shape hard deny; env-by-construction scrubbing; every FS tool run-denies)
+- [x] P8.4 Injection red-team corpus across 7 channels (file-read/tool-output/
+  transcript/pr-title/diff-comment/commit-msg/mcp-output) + staged combination attack;
+  undetected-by-design rows labeled with compensating controls (never silent)
+- [x] P8.5 MCP abuse suite: 512KB cap boundaries (N/N+1), content-length lies,
+  mid-write death, stall-bounded timeouts, giant params, argv metachar inertness,
+  abuse-then-reuse state-poisoning checks
+- [x] P8.6 Supply-chain mechanization R1-R4 (zero runtime deps, exact pins, no install
+  hooks, lockfile v3) + dependency-policy.md v2
+- [x] P8.7 Threat-model v2 with findings table F1-F7 + residual-risk log
+- Hardened upstream: world-writable chmod rule (gte high), inline-code interpreter rule,
+  piped-RCE generalized (curl/wget/fetch), override-safety adjective tolerance,
+  aws-secret quoted-key form (package + gate lanes aligned)
+- Gate: 565/565 tests, lint 0, tsc 0, security-gate GREEN →
+  `docs/development/phase-8-gate-review.md`
 
 ## Phase 9 — Production readiness (Plan §50/51)
 

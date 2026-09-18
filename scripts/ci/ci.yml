@@ -47,6 +47,9 @@ jobs:
 
       - name: secret scan (offline, blocking)
         run: npm run check:secrets
+      # Phase 8 (Plan §50): blocking security gate — secrets/dep-audit/supply-chain/SAST-lite.
+      - name: Security gate
+        run: npm run security:gate
 
       - name: dependency audit (high+, blocking)
         run: npm run audit:deps

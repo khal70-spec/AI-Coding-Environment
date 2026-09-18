@@ -25,3 +25,22 @@
 dependency-free. **Dev dependencies (Phase 1+)**: `typescript@5.9.3`, `@types/node@22.20.3`
 (both exact-pinned, lockfile committed) for the blocking `npm run typecheck` gate.
 ESLint + `typescript-eslint` join as dev-deps with the Phase 3 config wave.
+
+## Mechanical enforcement (Phase 8, v2)
+
+The rules above are no longer review-checklist-only — they are machine-checked and BLOCKING:
+
+- `scripts/supply-chain-check.mjs` (lane 3 of `npm run security:gate`) enforces rules
+  R1–R4: zero runtime/optional/peer deps in every workspace package, exact dev pins
+  (no `^`/`~`/latest/git/file), zero install-hook scripts anywhere, lockfile v3 with no
+  insecure `http://` registry URLs and no runtime-dep closure inside workspace entries.
+- `scripts/security-gate.mjs` composes the blocking lanes: secrets scan →
+  `npm audit --audit-level=high --production` → supply-chain → SAST-lite. Any lane
+  failing exits 1 with the lane + evidence named (fail-loud proof:
+  `tests/security/security-gate.test.mjs` plants a real violation per lane).
+- `scripts/security-sast.mjs` (S1–S7): forbidden-API classes (eval/new Function,
+  `shell: true`, direct shell spawn, SQL template interpolation, uncontrolled
+  `process.env` reads in packages, renderer XSS sinks, CORS wildcard) with a
+  visible allowlist (every suppression prints its reason at scan time).
+- Root `.npmrc` posture: `ignore-scripts=true` recommended for third-party install
+  surfaces (workspace setup uses exact-pinned dev deps only).

@@ -18,7 +18,10 @@
     "audit:deps": "npm audit --audit-level=high",
     "check:secrets": "node scripts/check-secrets.mjs",
     "db:migrate": "node scripts/db-migrate.mjs",
-    "desktop": "node apps/desktop/src/server.ts"
+    "desktop": "node apps/desktop/src/server.ts",
+    "security:gate": "node scripts/security-gate.mjs",
+    "security:sast": "node scripts/security-sast.mjs",
+    "supply-chain": "node scripts/supply-chain-check.mjs"
   },
   "engines": {
     "node": ">=22.18.0"
