@@ -60,3 +60,26 @@ aice route <task-id> [--prompt T]                        # deterministic model d
 - Routing is a pure rule table: data classification clearance first (restricted ⇒
   local providers only), then risk, then kind, then cost — ties resolve on ids, and
   every decision prints its rationale. Empty pool ⇒ exit 1, never a silent fallback.
+
+## MCP servers & skills (Phase 6)
+
+```bash
+# MCP: register a contained server (stdio or loopback/HTTPS http)
+aice mcp add --name echo --transport stdio --command "/usr/bin/node,/path/server.js" \
+             --tools-allow echo,get_time [--tools-deny …] [--network-allow host:port,…]
+aice mcp list / invoke <id> --tool T --args-json '["…"]' / enable|disable|remove <id>
+
+# Skills: register → review (consent surface) → approve (tamper-checked) → gate
+aice skill add <path>        # digest + manifest registered as pending_review
+aice skill review <id>       # shows digest + declared permissions — read before approve!
+aice skill approve <id>      # re-digests live bundle; ANY mismatch blocks it
+aice skill gate <id>         # exit 0 only when approved + digest matches
+```
+
+Truths you can rely on:
+
+- Wildcards are forbidden everywhere; empty allowlists are default-deny.
+- `http` MCP servers must be loopback (https for remote); endpoint `networkAllow`
+  entries pin exact host:port; kill switch is per server.
+- Permission rows (`mcp:<id>`/`skill:<name>`) can only tighten grants — never loosen.
+- Skill digests cover path names AND bytes; a one-byte edit flips to blocked.
