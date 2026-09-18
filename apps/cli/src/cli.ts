@@ -943,7 +943,6 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
             fsRead: m.grant.fsRead,
             fsWrite: m.grant.fsWrite,
             terminal: m.grant.terminal,
-            reservedDeny: m.grant.reservedDeny,
             maxRisk: m.grant.maxRisk,
           }));
           out.print(rows, rows.map((r) => `${r.agent}\t[${r.maxRisk}]\t${r.toolsAllow.join(",")}\t${r.description}`).join("\n"));
