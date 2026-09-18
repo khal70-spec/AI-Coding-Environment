@@ -45,3 +45,18 @@ Rules of the lane:
   evidence (`aice approve plan <id>`), resume with `--approved`.
 - `--rounds N` caps model↔tool iterations (default 12, hard max 64) — a runaway model
   clamps, never loops forever.
+
+## Context & routing (Phase 5)
+
+```bash
+aice context build <task-id> [--prompt T] [--budget N]   # index → rank → pack into .aice/context/
+aice route <task-id> [--prompt T]                        # deterministic model decision for the task
+```
+
+- The index walk never follows symlinks and excludes secret-prone paths at the door
+  (`.env`, `secrets/`, key material) — those files are recorded as skipped instead.
+- Packed chunks are capped + secret-redacted before they count; audit hashes are of
+  the admitted (redacted) text.
+- Routing is a pure rule table: data classification clearance first (restricted ⇒
+  local providers only), then risk, then kind, then cost — ties resolve on ids, and
+  every decision prints its rationale. Empty pool ⇒ exit 1, never a silent fallback.

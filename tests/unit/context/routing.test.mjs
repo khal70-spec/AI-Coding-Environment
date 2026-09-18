@@ -10,12 +10,12 @@ const PROVIDERS = [
 ];
 
 const MODELS = [
-  { id: "local:qwen-code-7b", providerId: "local", displayName: "Qwen Coder 7B", verified: true, contextWindow: 32768, status: "active", costPerMtokOut: 0 },
-  { id: "local:llama-8b", providerId: "local", displayName: "Llama 3.1 8B Instruct", verified: true, contextWindow: 8192, status: "active", costPerMtokOut: 0 },
-  { id: "cloud:gpt-4o", providerId: "cloud", displayName: "gpt-4o", verified: true, contextWindow: 128000, status: "active", costPerMtokOut: 15 },
-  { id: "cloud:gpt-4o-mini", providerId: "cloud", displayName: "gpt-4o-mini", verified: true, contextWindow: 128000, status: "active", costPerMtokOut: 0.6 },
-  { id: "cloud:unverified-x", providerId: "cloud", displayName: "CodexX", verified: false, contextWindow: 200000, status: "active", costPerMtokOut: 99 },
-  { id: "off:dead-model", providerId: "off", displayName: "z", verified: true, contextWindow: 500000, status: "active", costPerMtokOut: 1 },
+  { id: "local:qwen-code-7b", providerId: "local", displayName: "Qwen Coder 7B", verified: true, contextWindow: 32768, status: "available", costPerMtokOut: 0 },
+  { id: "local:llama-8b", providerId: "local", displayName: "Llama 3.1 8B Instruct", verified: true, contextWindow: 8192, status: "available", costPerMtokOut: 0 },
+  { id: "cloud:gpt-4o", providerId: "cloud", displayName: "gpt-4o", verified: true, contextWindow: 128000, status: "available", costPerMtokOut: 15 },
+  { id: "cloud:gpt-4o-mini", providerId: "cloud", displayName: "gpt-4o-mini", verified: true, contextWindow: 128000, status: "available", costPerMtokOut: 0.6 },
+  { id: "cloud:unverified-x", providerId: "cloud", displayName: "CodexX", verified: false, contextWindow: 200000, status: "available", costPerMtokOut: 99 },
+  { id: "off:dead-model", providerId: "off", displayName: "z", verified: true, contextWindow: 500000, status: "available", costPerMtokOut: 1 },
 ];
 
 const input = (task, classif = "internal") => ({

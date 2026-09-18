@@ -41,8 +41,10 @@ implementer, tester, security reviewer, code reviewer, docs/release agents. Test
 - [x] P5.4 classifier + deterministic router + escalation + debate/vote —
   `routing.ts` (rules: clearance→restricted-local-only→high-risk-strong→kind→cost,
   id-tiebreak; ties escalate, never silently resolved)
-- [ ] P5.5 CLI wiring: `aice context build` (index+pack persisted) + `aice route`
-  (decision against live registry) — then Phase 5 gate; tests: CLI-level smoke.
+- [x] P5.5 CLI wiring: `aice context build` (index+pack persisted under
+  `.aice/context/`, content-free audit) + `aice route` (decision against live
+  registry; exit 1 on honest "(none)" lane); status vocabulary aligned with
+  registry (available|degraded); CLI-spawn smoke tests incl. restricted pinning
 
 ## Phase 6 — MCP & skills (Plan §54.22–23, §17/40/41)
 

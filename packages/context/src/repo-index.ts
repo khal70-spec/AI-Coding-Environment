@@ -47,7 +47,7 @@ export const REPO_INDEX_FILENAME = ".aice/context/index.json";
 
 const DIR_EXCLUDES = new Set([
   ".git", "node_modules", ".aice", "dist", "build", "out", "coverage", "target",
-  "__pycache__", ".venv", "venv", ".idea", ".vscode", ".next", ".cache",
+  "__pycache__", ".venv", "venv", ".idea", ".vscode", ".next", ".cache", ".local",
 ]);
 
 /** Never read these for content (also excluded from retrieval by filter rules). */

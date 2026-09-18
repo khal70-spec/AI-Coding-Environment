@@ -199,6 +199,8 @@ import { FS_TOOLS } from "../../../packages/tools/src/fs-tools.ts";
 import { GIT_TOOLS } from "../../../packages/tools/src/git-tools.ts";
 import { TEST_RUNNER_TOOLS } from "../../../packages/tools/src/test-runner-tool.ts";
 import { BUILTIN_MANIFESTS } from "../../../packages/agents/src/index.ts";
+import { buildRepoIndex, persistRepoIndex, packWorkspace } from "../../../packages/context/src/index.ts";
+import { classifyTask, routeTask } from "../../../packages/context/src/routing.ts";
 import { investigate } from "../../../packages/agents/src/investigator.ts";
 import { architectPlan } from "../../../packages/agents/src/architect.ts";
 import { implement } from "../../../packages/agents/src/implementer.ts";
@@ -1063,6 +1065,110 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           ].join("\n"),
         );
         return exitOk ? 0 : 1;
+      }
+
+      case "context": {
+        const sub = pos[0];
+        if (sub !== "build") return throwUsage("context build <task-id> [--prompt T] [--budget N]");
+        const taskId = pos[1] ?? throwUsage("context build <task-id> ...");
+        const t = s.tasks.get(taskId);
+        const project = s.projects.get(t.projectId);
+        const ws = s.workspaces
+          .listByProject(project.id)
+          .filter((w) => w.taskId === taskId && w.state === "active")
+          .at(-1);
+        const jailRoot = ws !== undefined ? ws.path : project.rootPath;
+        const taskText = flagString(global.flags, "prompt") ?? t.title;
+        const budgetRaw = flagString(global.flags, "budget");
+        const maxTokens = budgetRaw === undefined ? 8000 : Number(budgetRaw);
+        if (!Number.isInteger(maxTokens) || maxTokens < 256 || maxTokens > 500000) {
+          throw new CliError("USAGE", "--budget must be 256..500000");
+        }
+        const index = buildRepoIndex(jailRoot);
+        const indexPath = persistRepoIndex(jailRoot, index);
+        const pack = packWorkspace(jailRoot, index, { taskText, classification: t.classification }, maxTokens);
+        const packPath = resolve(jailRoot, ".aice", "context", "pack.json");
+        mkdirSync(resolve(jailRoot, ".aice", "context"), { recursive: true });
+        writeFileSync(
+          packPath,
+          JSON.stringify(
+            {
+              taskId,
+              taskText: taskText.slice(0, 200),
+              jailRoot,
+              budgetTokens: maxTokens,
+              packed: pack.packed,
+              dropped: pack.dropped,
+              ranked: pack.ranked.slice(0, 25),
+              redactionHits: pack.redactionHits,
+            },
+            null,
+            1,
+          ) + "\n",
+        );
+        s.audit.append({
+          actor,
+          action: "context.build",
+          target: taskId,
+          projectId: project.id,
+          taskId,
+          decision: "allow",
+          detail: {
+            filesIndexed: index.files.length,
+            skipped: index.skipped.length,
+            symbols: index.symbols.length,
+            edges: index.edges.length,
+            chunks: pack.packed.length,
+            droppedChunks: pack.dropped.length,
+            redactionHits: pack.redactionHits,
+            jailRoot,
+          },
+        });
+        out.print(
+          { index: indexPath, pack: packPath, filesIndexed: index.files.length, symbols: index.symbols.length, edges: index.edges.length, chunks: pack.packed.length, dropped: pack.dropped.length, redactionHits: pack.redactionHits },
+          [
+            `context built for ${taskId} (jail ${jailRoot})`,
+            `  files: ${index.files.length}  symbols: ${index.symbols.length}  edges: ${index.edges.length}  skipped: ${index.skipped.length}`,
+            `  chunks packed: ${pack.packed.length} / dropped: ${pack.dropped.length}  (budget ${maxTokens} tok)  redactions: ${pack.redactionHits}`,
+            `  index → ${indexPath}`,
+            `  pack  → ${packPath}`,
+          ].join("\n"),
+        );
+        return 0;
+      }
+
+      case "route": {
+        const taskId = pos[0] ?? throwUsage("route <task-id> [--prompt T]");
+        const t = s.tasks.get(taskId);
+        const project = s.projects.get(t.projectId);
+        const facts = classifyTask(flagString(global.flags, "prompt") ?? t.title);
+        const decision = routeTask({
+          task: facts,
+          projectClassification: project.classification,
+          models: s.models.listAll(),
+          providers: s.providers.list(),
+        });
+        s.audit.append({
+          actor,
+          action: "route.decision",
+          target: taskId,
+          projectId: project.id,
+          taskId,
+          decision: "allow",
+          detail: { kind: facts.kind, risk: facts.risk, rule: decision.rule, modelId: decision.modelId, providerId: decision.providerId },
+        });
+        const payload = { taskId, facts, decision };
+        out.print(
+          payload,
+          [
+            `task: kind=${facts.kind} risk=${facts.risk}${facts.mutating ? " mutating" : ""}${facts.codeIntensive ? " code" : ""}`,
+            `route: ${decision.modelId} via ${decision.providerId}`,
+            `rule: ${decision.rule}`,
+            `candidates: ${decision.candidates.join(", ") || "—"}`,
+            `rationale: ${decision.rationale}`,
+          ].join("\n"),
+        );
+        return decision.modelId === "(none)" ? 1 : 0;
       }
 
       default:
