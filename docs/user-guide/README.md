@@ -83,3 +83,26 @@ Truths you can rely on:
   entries pin exact host:port; kill switch is per server.
 - Permission rows (`mcp:<id>`/`skill:<name>`) can only tighten grants — never loosen.
 - Skill digests cover path names AND bytes; a one-byte edit flips to blocked.
+
+## Governed desktop UI (Phase 7)
+
+The control surface sits behind a hardened bridge (`packages/ui` allowlist —
+**nothing unlisted is reachable; the UI cannot self-attest governance evidence**):
+
+```bash
+DB_PATH=.local/app.db BRIDGE_ACTOR=alice npm run desktop
+# → http://0.0.0.0:<port> (binds 0.0.0.0; restrict with BRIDGE_ALLOWED_HOSTS="...")
+```
+
+- **Projects / Tasks** — create + advance the ADR-007 lifecycle; every mutation funnels
+  through the TaskEngine with audit; illegal transitions return `ENGINE_*` denials and
+  never touch the DB row.
+- **Approvals** — plan/final approvals unlock exactly one brake each; checkpoint /
+  verify / review evidence is CLI/agent-only (no bridge command exists for it).
+- **Agent sessions** — transcripts render display-only (redacted, bounded, inert text).
+- **MCP / Skills** — visibility + enable/disable; consent and tamper paths stay on
+  `aice mcp` / `aice skill` (CLI bridge lanes write the audit).
+- **Audit** — content-free, append-only, redacted detail.
+
+Preview hosts (arena/sandbox): set `BRIDGE_ALLOWED_HOSTS="e2b.app"` — foreign hosts get
+`403 HOST_DENIED` structurally. See `docs/development/phase-7-gate-review.md`.

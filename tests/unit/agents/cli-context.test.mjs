@@ -42,7 +42,7 @@ describe("aice context / route (P5.5)", () => {
     assert.ok(existsSync(out.index), "index persisted");
     assert.ok(existsSync(out.pack), "pack persisted");
     assert.equal(out.filesIndexed, 4);
-    assert.match(out.index, /\.aice[\/\\]context[\/\\]index\.json$/);
+    assert.match(out.index, /\.aice[/\\]context[/\\]index\.json$/);
     const pack = JSON.parse(readFileSync(out.pack, "utf8"));
     assert.ok(pack.packed.some((c) => c.id === "file:src/routes/health.ts"), JSON.stringify(pack.ranked));
     // health hub ranked above noise
@@ -70,7 +70,7 @@ describe("aice context / route (P5.5)", () => {
   it("route against seeded registry: code task → code-named verified model; restricted pins local", { timeout: 120_000 }, () => {
     const root = fixtureProject();
     const db = join(root, ".local", "app.db");
-    const { project, task } = created(db, root);
+    const { project: _project, task } = created(db, root);
     // seed providers via CLI + models via the DAO in-process
     const add = aice(db, root, ["provider", "add", "--name", "lc", "--protocol", "local-openai-compatible", "--base-url", "http://127.0.0.1:1234", "--max-classification", "restricted", "--json"]);
     assert.equal(add.status, 0, add.stderr + add.stdout);

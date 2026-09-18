@@ -33,7 +33,7 @@ export const PLAN_SECTIONS_GUIDE = [
 
 /** Lightweight structure check: a "## Steps" section with ≥1 numbered bullet. */
 export function planLooksStructured(text: string): boolean {
-  const steps = text.split("\n").filter((l) => /^\s*\d+[\.)]\s+\S/.test(l)).length;
+  const steps = text.split("\n").filter((l) => /^\s*\d+[.)]\s+\S/.test(l)).length;
   return /##\s*steps/i.test(text) && steps >= 1;
 }
 

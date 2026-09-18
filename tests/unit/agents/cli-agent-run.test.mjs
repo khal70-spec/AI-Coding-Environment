@@ -7,11 +7,9 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFile, spawnSync } from "node:child_process";
-import { promisify } from "node:util";
+import { spawnSync } from "node:child_process";
 import { openDatabase, AgentRunsDao } from "../../../packages/storage/src/index.ts";
 
-const execFileP = promisify(execFile);
 const CLI = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "apps/cli/src/cli.ts");
 
 function fixtureProject() {

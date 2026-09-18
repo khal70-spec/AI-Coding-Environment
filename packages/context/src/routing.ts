@@ -90,7 +90,6 @@ function providerCleared(p: RouteProvider, c: DataClassification): boolean {
 }
 
 const CODE_LIKE_NAME = /(code|coder|deepseek|qwen|star|copilot|codestral|granite-c)/i;
-const DOCS_LIKE_NAME = /(mini|nano|haiku|flash|lite|small)/i;
 
 /**
  * Rule table, evaluated top-down (first match wins; everyone inside a rule is
@@ -126,7 +125,7 @@ export function routeTask(input: RouteInput): RouteDecision {
     });
   }
 
-  let rule = "default";
+  let rule: string;
   let chosen: RouteModel[];
   const verified = pool.filter((m) => m.verified);
   if (input.task.risk === "high") {
@@ -218,7 +217,7 @@ export function debateVote(candidates: readonly DebateCandidate[]): DebateResult
   let decidedBy: DebateResult["decidedBy"] = "fenced-verdict";
   for (const c of candidates) {
     const m = VERDICT_RE.exec(c.answer);
-    let choice = choiceOf(c.answer);
+    const choice = choiceOf(c.answer);
     if (m === null) decidedBy = "keyword-consensus";
     if (choice === null) continue;
     votes.set(choice, (votes.get(choice) ?? 0) + 1);

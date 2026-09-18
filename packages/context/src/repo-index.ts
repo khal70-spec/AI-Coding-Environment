@@ -7,7 +7,7 @@
 //   - secret-prone paths (dot env, key material, certs) are EXCLUDED from content reads.
 import { createHash } from "node:crypto";
 import { readdirSync, lstatSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { basename, extname, join, relative } from "node:path";
+import { extname, join } from "node:path";
 
 export const MAX_INDEXABLE_BYTES = 256 * 1024;
 export const MAX_INDEX_FILES = 5000;
@@ -102,7 +102,7 @@ const SYMBOL_RULES: Readonly<Record<Language, readonly SymbolRule[]>> = {
   ],
   csharp: [
     { kind: "class", re: /^\s*(?:public|internal|private|protected|static|sealed|partial|\s)+class\s+([A-Za-z_][\w]*)/g, group: 1 },
-    { kind: "function", re: /^\s*(?:public|internal|private|protected|static|override|virtual|sealed|\s)+[A-Za-z_][\w<>\[\]]*\s+([A-Za-z_][\w]*)\s*\([^;]*\)\s*[{:=>]/g, group: 1 },
+    { kind: "function", re: /^\s*(?:public|internal|private|protected|static|override|virtual|sealed|\s)+[A-Za-z_][\w<>[\]]*\s+([A-Za-z_][\w]*)\s*\([^;]*\)\s*[{:=>]/g, group: 1 },
   ],
   php: [
     { kind: "function", re: /^\s*(?:public|protected|private|static|\s)*function\s+([A-Za-z_][\w]*)\s*\(/g, group: 1 },
@@ -147,7 +147,7 @@ function sha256(buf: Buffer): string {
 /** Resolve an import spec to an in-repo file path, or null (package/builtin/out-of-root). */
 function resolveImport(fromRelPosix: string, spec: string, lang: Language, files: ReadonlyMap<string, FileEntry>): string | null {
   const baseDir = fromRelPosix.split("/").slice(0, -1).join("/");
-  let candidate: string | null = null;
+  let candidate: string;
   if (lang === "typescript" || lang === "php") {
     if (!spec.startsWith("./") && !spec.startsWith("../")) return null; // package import
     const joined = join(baseDir, spec);
@@ -177,7 +177,7 @@ function* walk(root: string): Generator<string> {
   while (stack.length > 0) {
     const dir = stack.shift() as string;
     const absDir = join(root, dir);
-    let entries: string[] = [];
+    let entries: readonly string[];
     try {
       entries = readdirSync(absDir).sort();
     } catch {

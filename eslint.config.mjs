@@ -53,6 +53,18 @@ export default [
     },
   },
   {
+    files: ["apps/*/web/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: "module",
+      globals: {
+        console: "readonly", document: "readonly", window: "readonly", fetch: "readonly",
+        alert: "readonly", prompt: "readonly", setTimeout: "readonly",
+      },
+    },
+    rules: { "no-unused-vars": ["error", { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }] },
+  },
+  {
     files: ["scripts/**/*.mjs", "tests/**/*.mjs"],
     languageOptions: {
       ecmaVersion: 2023,

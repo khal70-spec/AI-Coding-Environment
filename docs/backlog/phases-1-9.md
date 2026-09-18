@@ -68,10 +68,24 @@ implementer, tester, security reviewer, code reviewer, docs/release agents. Test
 - plugin framework: MCP servers ARE the plugin registry in this POC; a fuller
   marketplace surface lands after the UI (Phase 7+).
 
-## Phase 7 — Desktop UI (Plan §54.24–25, §4/31)
+## Phase 7 — Desktop UI (Plan §54.24–25, §4/31) — DONE (bridge-kernel POC lane)
 
-Tauri shell + React app: all §4.2 navigation, §4.3 palette, run timelines, approvals,
-diffs, audit views; hardened IPC (§28). Tests: IPC allowlist + fuzz, E2E workflows.
+- [x] P7.1 Bridge kernel in `packages/ui` (allowlist + pinned args + stable lanes +
+  version/pinning fingerprint) — originally scoped as "Tauri IPC"; delivered as the
+  shell-agnostic bridge protocol (ADR-001 divergence recorded, kernel reusable by the
+  Tauri shell 1:1)
+- [x] P7.2 HTTP adapter `apps/desktop/src/server.ts` (host gate, POST-only, 64KB cap
+  with delivered 413, traversal-proof static, CSP/nosniff/frame-deny, no-store, no CORS)
+- [x] P7.3 Vanilla ES-module SPA `apps/desktop/web` (§4.2 IA subset: projects / tasks /
+  agent sessions / MCP / skills / audit; `textContent`-only rendering)
+- [x] P7.4 Bridge fuzz + allowlist tests (`tests/unit/ui`) + server canopy tests
+  (`tests/unit/desktop/server.test.mjs`) — incl. `__proto__` smuggle + 413-desync fixes found
+- [x] P7.5 E2E operator workflow over the live server (`tests/unit/desktop/e2e.test.mjs`):
+  governance brakes proven (approval + checkpoint), evidence self-attestation impossible,
+  failure lanes stick, audit monotonic, cross-project isolation
+- Gate: 517/517 tests, lint 0, tsc 0 → `docs/development/phase-7-gate-review.md`
+- Deferred: Tauri/React shell, diff viewer, marketplace UI, tray/notifications, DOM-level
+  SPA test runner (gate review "Explicit deferrals")
 
 ## Phase 8 — Security hardening (Plan §50)
 

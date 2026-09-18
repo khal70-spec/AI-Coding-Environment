@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.base.json",
     "audit:deps": "npm audit --audit-level=high",
     "check:secrets": "node scripts/check-secrets.mjs",
-    "db:migrate": "node scripts/db-migrate.mjs"
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "desktop": "node apps/desktop/src/server.ts"
   },
   "engines": {
     "node": ">=22.18.0"

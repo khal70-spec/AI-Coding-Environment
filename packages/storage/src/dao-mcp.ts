@@ -2,7 +2,6 @@
 // vault:// only). Skill rows are tamper-evident (bundle digest pinned at review).
 import { randomUUID } from "node:crypto";
 import type { SqliteDb } from "./migrate.ts";
-import type { DataClassification } from "../../core/src/index.ts";
 
 export interface McpServerRow {
   readonly id: string;

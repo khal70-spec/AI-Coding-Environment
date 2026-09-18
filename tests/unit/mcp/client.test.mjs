@@ -1,7 +1,7 @@
 // Unit: MCP client containment (P6.2) — real JSON-RPC over loopback http + stdio
 // children, plus the hostile scenarios: oversized answers, redirects, dead servers,
 // hostile exit codes. Zero network beyond the loopback harness.
-import { describe, it, before, after } from "node:test";
+import { describe, it, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
