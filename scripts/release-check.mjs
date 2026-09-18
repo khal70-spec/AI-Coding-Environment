@@ -39,7 +39,7 @@ const rows = [
       if (missing.length > 0) return { ok: false, detail: `missing: ${missing.join(", ")}` };
       return { ok: true, detail: `${need.length} documents present` };
     } },
-  { id: "R9", lane: "no tracked placeholders (TODO:/FIXME:/XXX:/HACK: in shipped code)", check: () => {
+  { id: "R9", lane: "no tracked placeholder markers in shipped code (task-market tags)", check: () => {
       const lanes = ["packages", "apps", "scripts"];
       const r = spawnSync("git", ["grep", "-n", "-i", "-E", "\\b(TODO|FIXME|XXX|HACK):", "--", ...lanes], { cwd: ROOT, encoding: "utf8", shell: false });
       if (r.status === 1) return { ok: true, detail: "no placeholders in shipped lanes" };
