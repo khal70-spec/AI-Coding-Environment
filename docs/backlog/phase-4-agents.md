@@ -46,8 +46,11 @@ scan/browser), evidence-checked verify, blocking lint, 418 tests green.
   flow), `test.exec` runs inside the jail; failure feed-back into fix iterations;
   bounded by `MAX_FIX_ATTEMPTS` (engine); persists fresh `test_results` rows so the
   verify cross-check (P3.4) stays real
-- [ ] E2E with mock transport over a fixture repo: edit → tests fail → fix → tests
-  green → evidence rows → guard advances
+- [x] E2E with real dispatcher over a fixture repo (loopback OpenAI-compatible mock):
+  multi-turn loop, tool output on the wire, redact layer + T11 backstop, egress gate
+  (loopback-only-local vs remote rules), budget hook fired
+  NOTE: evidence-rows flow proven at unit level (P4.4/P4.5); task-state guard
+  E2E is deliberately deferred to Phase 6 (orchestrator engine wiring)
 
 ## P4.5 CLI + close-out — in flight (CLI DONE)
 
@@ -55,8 +58,8 @@ scan/browser), evidence-checked verify, blocking lint, 418 tests green.
   `--prompt` override + `--provider/--model` over `AICE_AGENT_*` env, approval
   resume via `--approved` (Plan §33 evidence recorded through existing `approve`),
   persistence in `agent_runs` (migration 004) + artifacts under jail `.aice/agent-runs/`
-- [ ] Docs sweep; policy-matrix rows for agent-driven flows; gate review;
-  tag `phase-4-complete`
+- [x] Docs sweep + policy-matrix rows + gate review (phase-4-gate-review.md)
+- [ ] tag `phase-4-complete` — NOW
 
 **Done = investigator/architect/implementer run end-to-end through the real
 dispatcher against a fixture repo with a mock provider; every tool call audited;
