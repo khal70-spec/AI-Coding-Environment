@@ -11,8 +11,10 @@ run tests + security checks, review the diff, and safely roll back.
 
 ## Status
 
-**Phases 0–9 complete** — release candidate `phase-9-complete` (see
-[DoD review](./docs/release/dod-review.md) + [readiness matrix](./docs/release/release-checklist.md)).
+**v1.0.0 — GA on the local-first governed track** (611 tests green; deterministic,
+ed25519-signed, byte-reproducible artifacts). See
+[DoD review](./docs/release/dod-review.md), [readiness matrix](./docs/release/release-checklist.md),
+[CHANGELOG](./CHANGELOG.md), [project state](./docs/release/project-state.md).
 
 Working today, fully offline: task state machine persisted to SQLite with an append-only
 audit trail, risk-gated approvals, checkpoint → isolated-git-worktree task workspaces,
@@ -21,7 +23,8 @@ agent composer (script-replay + local-openai adapters), context engine
 (index/pack/route), MCP + skills containment, hardened desktop bridge UI, and the
 `aice` operator CLI. Security posture is machine-enforced:
 `npm run security:gate` (secrets/dep-audit/supply-chain/SAST) + crash-recovery,
-backup/restore, deterministic release artifacts, and the §53 golden-workflow suite.
+backup/restore, deterministic release artifacts, the §53 golden-workflow suite, socket-level provider conformance,
+and a11y rules A1–A13 (computed WCAG AA contrast).
 
 See [`docs/backlog/`](./docs/backlog/) for the phase ledger and
 [`docs/adr/`](./docs/adr/) for decisions.

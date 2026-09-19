@@ -24,7 +24,7 @@ not vibes. Each row links its evidence.
 | 12 | UI bridge kernel: allowlisted commands, pinned args, stable lanes, version fingerprint, bridge-over-engine writes | bridge tests (Phase 7) |
 | 13 | Desktop POC: hardened HTTP adapter (host gate, caps, CSP, traversal-proof), vanilla SPA (6 surfaces), a11y static gate | desktop + e2e + a11y suites (Phase 7/9) |
 | 14 | Security gate machinery: `security:gate` (secrets/dep-audit/supply-chain/SAST) + fail-loud probes + seeded fuzz corpus + red-team corpus | Phase 8 gate review + 19 security suites |
-| 15 | Production ops: SIGKILL crash-recovery, verified backup/restore, migration lint, perf budgets, deterministic release artifacts (byte-identical rebuild), release readiness matrix | Phase 9 gate review; `release-check` 10/10 |
+| 15 | Production ops: SIGKILL crash-recovery, verified backup/restore, migration lint, perf budgets, deterministic release artifacts (byte-identical rebuild), release readiness matrix | Phase 9 gate review; `release-check` **11/11** (R11 signature row landed at v1.0.0) |
 | 16 | Docs: 10 gate reviews, user guide (Phases 1–9), runbooks (3), security policies + threat-model v2, 12 ADRs, backlog ledger, DoD review | this audit + R7/R8 rows |
 
 ## B. What is NOT done (deferred with owner lanes)

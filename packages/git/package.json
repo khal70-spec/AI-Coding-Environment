@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/git",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Git safety layer: checkpoint/worktree command builders and branch guards",

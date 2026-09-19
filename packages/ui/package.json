@@ -1,9 +1,9 @@
 {
   "name": "@ai-coding-env/ui",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared UI primitives (Phase 7 — placeholder, do not build yet)",
+  "description": "Shared UI primitives (Phase 7 \u2014 placeholder, do not build yet)",
   "exports": {},
   "files": []
 }

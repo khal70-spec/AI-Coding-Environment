@@ -50,6 +50,7 @@ const rows = [
         : { ok: false, detail: `${hits.length} placeholder(s):\n${hits.slice(0, 5).map((h) => `  ${h.slice(0, 160)}`).join("\n")}` };
     } },
   { id: "R10", lane: "release artifact sums + reproducibility (dist pre-built)", cmd: [NODE, [join("scripts", "release-verify.mjs")]], timeout: 120_000 },
+  { id: "R11", lane: "release signature verifies against pinned publisher key (dist signed)", cmd: [NODE, [join("scripts", "release-verify-sign.mjs"), "--require-signature"]], timeout: 30_000 },
 ];
 
 console.log(`# Release readiness matrix — ${rows.length} rows (ALL must pass)`);
