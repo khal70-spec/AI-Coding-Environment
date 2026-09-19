@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/providers",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Provider adapter interface, model registry schema, capability model",

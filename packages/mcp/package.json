@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "MCP server config model + validation (manager lands in Phase 6)",

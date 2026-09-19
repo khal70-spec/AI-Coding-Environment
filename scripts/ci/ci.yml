@@ -57,8 +57,22 @@ jobs:
       - name: typecheck (strict — blocking)
         run: npm run typecheck
 
-      - name: lint (advisory until Phase 3 config)
+      - name: lint (blocking since Phase 3)
         run: npm run lint
+
+      # Phase 9+ lanes: static a11y gate (A1-A15) and deterministic SBOM validation.
+      - name: a11y static gate (A1-A15, blocking)
+        run: node scripts/a11y-check.mjs
+
+      # Repro build proof on the clean CI tree. The SIGNING step requires the
+      # publisher private key, which must never live in CI runners for dev builds —
+      # hence release-check (which includes R11 signature verify) stays a release-
+      # lane command, run by the operator pipeline that holds the key.
+      - name: determined artifact + reproducibility
+        run: |
+          npm ci --ignore-scripts
+          node scripts/release-prepare.mjs
+          node scripts/release-verify.mjs
         continue-on-error: true
 
       - name: CLI doctor (offline self-check)

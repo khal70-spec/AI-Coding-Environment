@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.2] — 2026-09-19 (coverage + CI parity patch)
+
+- Bridge allowlist completeness suite: every documented command exercised live
+  (projects.list/tasks.list/tasks.show/tasks.fail/audit.list/mcp.list/skills.list)
+  plus a suite-level guard (≥9 distinct lanes dispatched per file) so future pruning
+  trips immediately (18/18 bridge suite total)
+- CI template brought to parity: lint marked blocking (since Phase 3), a11y gate
+  (A1-A15) and deterministic artifact + reproducibility steps added; the signing
+  caveat documented (publisher key never on CI runners — release-check stays an
+  operator lane)
+- New runbook: test-flake triage ladder (re-run → isolate → fixtures hygiene →
+  statics candidates → corpus policy), with the v1.0.1 transient recorded
+
 ## [1.0.1] — 2026-09-19 (release-hardening patch)
 
 - Security gate gains a 5th lane: `sbom-manifest` (deterministic CycloneDX validation
