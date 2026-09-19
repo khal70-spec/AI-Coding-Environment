@@ -61,8 +61,8 @@ async function renderProjects(main) {
   } });
   form.append(
     el("label", {}, "new project"),
-    el("input", { type: "text", id: "p-name", placeholder: "name (e.g. my-service)" }),
-    el("input", { type: "text", id: "p-path", placeholder: "absolute repo path" }),
+    el("input", { type: "text", id: "p-name", placeholder: "name (e.g. my-service)", "aria-label": "project name" }),
+    el("input", { type: "text", id: "p-path", placeholder: "absolute repo path", "aria-label": "project root path" }),
     el("button", { class: "act", type: "submit" }, "create"),
   );
   const table = el("table");
@@ -88,7 +88,7 @@ async function renderProjects(main) {
 async function renderTasks(main) {
   await refreshProjects();
   if (state.projectId === null && state.projects.length > 0) state.projectId = state.projects[0].id;
-  const picker = el("select", { onchange: async (e) => { state.projectId = e.target.value; state.taskId = null; await render(); } });
+  const picker = el("select", { "aria-label": "choose project", id: "proj-pick", onchange: async (e) => { state.projectId = e.target.value; state.taskId = null; await render(); } });
   for (const p of state.projects) picker.append(el("option", { value: p.id, ...(p.id === state.projectId ? { selected: "" } : {}) }, ` ${p.name}` ));
   const create = el("form", { class: "inline", onsubmit: async (e) => {
     e.preventDefault();
@@ -99,10 +99,10 @@ async function renderTasks(main) {
     $("#t-title").value = "";
     await render();
   } });
-  const riskSel = el("select", { id: "t-risk" },
+  const riskSel = el("select", { id: "t-risk", "aria-label": "task risk" },
     el("option", { value: "low" }, "low"), el("option", { value: "medium", selected: "" }, "medium"), el("option", { value: "high" }, "high"));
   create.append(
-    el("label", {}, "new task"), el("input", { type: "text", id: "t-title", placeholder: "title" }),
+    el("label", {}, "new task"), el("input", { type: "text", id: "t-title", placeholder: "title", "aria-label": "task title" }),
     riskSel, el("button", { class: "act", type: "submit" }, "create"),
   );
   const table = el("table");
@@ -134,7 +134,7 @@ async function renderTaskDetail(main, taskId) {
   wrap.append(el("h2", {}, `task ${b.task.title}`), el("div", { class: "detail-block" }, stateTag(b.task.state), el("span", { class: "muted" }, ` ${b.task.id} · risk ${b.task.risk} · ${b.task.classification}`)));
   // actions
   const actions = el("div", {});
-  const adv = el("select", { id: "adv-to" });
+  const adv = el("select", { id: "adv-to", "aria-label": "advance to state" });
   for (const s of NEXT_STATES) adv.append(el("option", { value: s }, s));
   actions.append(
     adv,
@@ -283,7 +283,11 @@ const views = {
 };
 
 async function render() {
-  for (const b of document.querySelectorAll("#nav button")) b.classList.toggle("active", b.dataset.view === state.view);
+  for (const b of document.querySelectorAll("#nav button")) {
+    const active = b.dataset.view === state.view;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-current", active ? "page" : "false");
+  }
   const main = $("#main");
   main.replaceChildren();
   try {

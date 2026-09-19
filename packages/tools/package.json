@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/tools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "description": "Tool runtime interfaces (execution lands in Phase 3 behind policy)",

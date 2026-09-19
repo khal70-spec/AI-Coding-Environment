@@ -53,6 +53,23 @@ for (const path of files(WEB)) {
   }
 }
 
+// A14: interactive form controls are labeled (aria-label / label / title)
+{
+  const js = readFileSync(join(WEB, "app.js"), "utf8");
+  const controls = [...js.matchAll(/el\("(select|input|textarea)",\s*\{([^}]*)\}/g)];
+  for (const ctl of controls) {
+    if (!/aria-label|"label"|title:/.test(ctl[2])) violations.push(`A14 unlabeled <${ctl[1]}> control in app.js`);
+  }
+}
+
+// A15: nav active state is communicated (aria-current), not class-only
+{
+  const js = readFileSync(join(WEB, "app.js"), "utf8");
+  if (/classList.toggle\("active"/.test(js) && !/aria-current/.test(js)) {
+    violations.push(`A15 nav active state is class-only — aria-current must accompany it`);
+  }
+}
+
 // A10: <html lang> present (index.html)
 {
   const html = readFileSync(join(WEB, "index.html"), "utf8");
@@ -112,7 +129,7 @@ for (const path of files(WEB)) {
   if (failures.length > 0) violations.push(`A13 contrast (AA 4.5:1): ${failures.join("; ")}`);
 }
 
-console.log(`# a11y-check — apps/desktop/web static rules A1-A13`);
+console.log(`# a11y-check — apps/desktop/web static rules A1-A15`);
 for (const n of notes) console.log(`NOTE       ${n}`);
 if (violations.length > 0) {
   for (const v of violations) console.log(`VIOLATION  ${v}`);

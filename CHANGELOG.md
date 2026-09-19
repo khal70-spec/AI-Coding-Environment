@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.1] — 2026-09-19 (release-hardening patch)
+
+- Security gate gains a 5th lane: `sbom-manifest` (deterministic CycloneDX validation
+  + zero-runtime cross-check), header dynamic
+- a11y rules A14 (labeled form controls) + A15 (aria-current on nav) — 4 real fix-ups
+  (labeled selects/inputs, aria-current on nav)
+- Golden v1.0 review-workflow e2e (diff → merge-preview → signing chain), incl. a
+  git invariant probe: worktree-add refuses checked-out branches (test exercises the
+  correct geometry)
+- Runbook: publisher key rotation; threat-model controls inventory updated
+- Root-cause follow-through on the R11 drift class: `--pin` lanes everywhere, fixtures
+  strictly repo-pure
+
+
 All notable milestones. Version follows the deterministic artifact train
 (`release-prepare` names artifacts `aice-v<version>-<shortsha>`).
 

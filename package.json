@@ -1,6 +1,6 @@
 {
   "name": "ai-coding-environment",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Secure, provider-neutral AI coding operating environment and agent orchestrator",
   "license": "Apache-2.0",

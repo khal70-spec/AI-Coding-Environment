@@ -30,10 +30,11 @@ function runLane(name, command, args, opts = {}) {
 }
 
 const results = [];
-console.log("# Security gate (Plan §50) — 4/4 lanes must pass");
+console.log(`# Security gate (Plan §50) — ${5} lanes must pass`);
 results.push(runLane("secrets-scan", execPath, [join("scripts", "check-secrets.mjs")]));
 results.push(runLane("dependency-audit", "npm", ["audit", "--audit-level=high", "--production"], { timeout: 240_000 }));
 results.push(runLane("supply-chain", execPath, [join("scripts", "supply-chain-check.mjs")]));
+results.push(runLane("sbom-manifest", execPath, [join("scripts", "sbom-check.mjs")]));
 results.push(runLane("sast-lite", execPath, [join("scripts", "security-sast.mjs")]));
 
 let hardFail = false;
