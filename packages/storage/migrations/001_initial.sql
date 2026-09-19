@@ -164,4 +164,5 @@ CREATE INDEX IF NOT EXISTS idx_audit_task ON audit_events(task_id);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action);
 CREATE INDEX IF NOT EXISTS idx_findings_task ON security_findings(task_id);
 
-INSERT INTO schema_migrations (version, name) VALUES (1, '001_initial');
+-- Idempotent self-record: re-applying this file (e.g. via the sqlite3 CLI) must not fail.
+INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (1, '001_initial');

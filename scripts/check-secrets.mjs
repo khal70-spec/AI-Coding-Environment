@@ -5,12 +5,17 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
+// Keep aligned with .gitleaks.toml — only pattern definitions + declared fixture files.
 const ALLOWLIST_FILES = new Set([
   "scripts/check-secrets.mjs",
   "packages/security/src/secret-patterns.ts",
   "tests/security/secret-redaction.test.mjs",
-  "tests/security/secret-patterns.test.mjs",
+  // Phase 8/9 red-team & fuzz fixtures — fake-token carriers (TESTONLY-marked strings)
+  "tests/security/fuzz-paths-redact.test.mjs",
+  "tests/security/redteam-injection.test.mjs",
+  "tests/security/security-gate.test.mjs",
   "docs/security/secret-policy.md",
+  "docs/security/threat-model.md",
 ]);
 
 // Patterns intentionally match REAL secret shapes; fixtures must use
@@ -19,7 +24,7 @@ const PATTERNS = [
   { name: "openai-key", re: /\bsk-(proj-)?[A-Za-z0-9_-]{20,}\b/ },
   { name: "anthropic-key", re: /\bsk-ant-[A-Za-z0-9_-]{10,}\b/ },
   { name: "aws-access-key", re: /\bAKIA[0-9A-Z]{16}\b/ },
-  { name: "aws-secret", re: /\baws_secret_access_key\b\s*[:=]\s*\S+/i },
+  { name: "aws-secret", re: /\baws_secret_access_key["\x27]?\s*[:=]\s*\S+/i },
   { name: "private-key-block", re: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
   { name: "github-token", re: /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/ },
   { name: "generic-api-key-assign", re: /\b(api[_-]?key|api[_-]?secret|access[_-]?token)\b\s*[:=]\s*["']?[A-Za-z0-9_\-./+]{16,}["']?/i },

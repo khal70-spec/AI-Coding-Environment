@@ -1,6 +1,6 @@
 {
   "name": "ai-coding-environment",
-  "version": "0.1.0",
+  "version": "1.0.2",
   "private": true,
   "description": "Secure, provider-neutral AI coding operating environment and agent orchestrator",
   "license": "Apache-2.0",
@@ -11,15 +11,27 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "test": "node --test \"tests/unit/**/*.test.mjs\" \"tests/security/**/*.test.mjs\"",
+    "test": "node --test \"tests/unit/**/*.test.mjs\" \"tests/security/**/*.test.mjs\" \"tests/integration/**/*.test.mjs\"",
     "test:workspaces": "npm run test --workspaces --if-present",
-    "lint": "eslint . --ext .ts,.tsx 2>/dev/null || echo \"lint: eslint not yet configured per-package\"",
-    "typecheck": "tsc --noEmit -p tsconfig.base.json || true",
+    "lint": "eslint packages apps scripts tests",
+    "typecheck": "tsc --noEmit -p tsconfig.base.json",
     "audit:deps": "npm audit --audit-level=high",
     "check:secrets": "node scripts/check-secrets.mjs",
-    "db:migrate": "node scripts/db-migrate.mjs"
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "desktop": "node apps/desktop/src/server.ts",
+    "security:gate": "node scripts/security-gate.mjs",
+    "security:sast": "node scripts/security-sast.mjs",
+    "supply-chain": "node scripts/supply-chain-check.mjs",
+    "tools:sbom": "node scripts/sbom-generate.mjs"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.18.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.20.3",
+    "eslint": "10.10.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.0"
   }
 }

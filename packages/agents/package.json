@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/agents",
-  "version": "0.1.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Agent permission manifests (machine-enforced, versioned)",
@@ -11,6 +11,6 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test \"../../../tests/unit/agents/**/*.test.mjs\""
+    "test": "node --test \"../../tests/unit/agents/**/*.test.mjs\""
   }
 }

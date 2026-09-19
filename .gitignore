@@ -12,9 +12,9 @@ out/
 *.tsbuildinfo
 
 # Tauri / Rust (Phase 7+)
+# NOTE: Cargo.lock IS committed — signed/reproducible builds require pinned deps (Plan §42/47).
 apps/desktop/src-tauri/target/
 **/*.rs.bk
-Cargo.lock
 
 # Test / coverage
 coverage/
@@ -58,5 +58,12 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Agent task workspaces + local app state (never commit)
+**/.aice/
+/.local/
+
 # Snapshots excluded anyway, but keep clean
 .arena/
+
+# Exception: the RELEASE PUBLISHER PUBLIC key pin — public by definition, must be tracked
+!docs/release/publisher-key.pem

@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/mcp",
-  "version": "0.1.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "MCP server config model + validation (manager lands in Phase 6)",
@@ -11,6 +11,6 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test \"../../../tests/unit/mcp/**/*.test.mjs\""
+    "test": "node --test \"../../tests/unit/mcp/**/*.test.mjs\""
   }
 }

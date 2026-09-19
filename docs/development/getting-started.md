@@ -2,24 +2,31 @@
 
 ## Prerequisites
 
-- Node.js ≥ 20 (`node --version`)
+- Node.js ≥ 22.18 (`node --version`) — tests and the CLI execute TypeScript directly via
+  type-stripping, which is flag-free from 22.18 on. Node 24 LTS recommended.
 - Git
-- No other toolchain needed for Phase 0 (zero runtime dependencies).
+- No other toolchain needed for Phase 0 (zero runtime dependencies; the migration
+  runner uses built-in `node:sqlite` — no `sqlite3` CLI required).
 
 ## First run
 
 ```bash
 npm install
-npm test                 # all workspace unit + security tests
+npm test                 # unit + security + integration tests
+npm run test:workspaces  # each package's own suite (must show non-zero pass counts)
 npm run check:secrets    # must pass before every commit/PR
 npm run audit:deps       # must be clean at high+ severity
+npm run db:migrate       # applies packages/storage/migrations (idempotent)
 ```
 
 ## Layout conventions
 
 - One npm workspace per `packages/*` and `apps/*`; ESM + `strict` TS.
 - Pure logic lives in `src/*.ts` compiled without bundlers; tests use `node --test`
-  and import from `src` (TS via type-stripping on Node ≥ 22, or compiled `dist/`).
+  and import from `src` directly (TS via type-stripping on Node ≥ 22.18).
+- `node --test` exits 0 on zero matches — a per-package glob that matches nothing is
+  silently green, so check pass counts when adding packages (the CI root run is the
+  authoritative count).
 - Security kernels (`policy`, `security`, `secrets`, `git` safety) must stay dependency-free.
 - New package? Add `package.json` + `README.md` (concept doc) + backlog entry. Prefer
   extending an existing package.
@@ -31,6 +38,8 @@ npm run audit:deps       # must be clean at high+ severity
 tests/unit/<package>/<name>.test.mjs
 # security (must include at least one expected-block/expected-deny case)
 tests/security/<name>.test.mjs
+# integration (real fs/SQLite/git — no external services)
+tests/integration/<area>/<name>.test.mjs
 node --test tests/unit/<package>/ tests/security/
 ```
 
@@ -40,7 +49,23 @@ Fixtures must be synthetic with fake markers (`TESTONLY`, `EXAMPLE`, `<redacted>
 
 | Command | Purpose |
 |---|---|
-| `npm test` | all workspace tests |
+| `npm test` | all tests (unit + security + integration) |
+| `npm run test:workspaces` | per-package suites |
 | `npm run check:secrets` | offline secret scan of tracked files |
 | `npm run audit:deps` | `npm audit` at high+ |
-| `DB_PATH=./.local/app.db node scripts/db-migrate.mjs` | apply SQL migrations (Phase 1+) |
+| `npm run typecheck` | strict TS check — real, blocking (typescript is a pinned dev-dep since Phase 1) |
+| `npm run lint` | advisory no-op until the ESLint flat config lands (Phase 3) |
+| `DB_PATH=./.local/app.db node scripts/db-migrate.mjs` | apply SQL migrations (idempotent) |
+
+## Operator CLI tour (Phase 1, fully offline)
+
+```bash
+DB=.local/app.db
+node apps/cli/src/cli.ts migrate --db $DB
+PROJ=$(node apps/cli/src/cli.ts project create --name demo --path /path/to/git/repo --json --db $DB | node -pe 'JSON.parse(require("fs").readFileSync(0)).id')
+TASK=$(node apps/cli/src/cli.ts task create --project $PROJ --title "add tests" --risk medium --json --db $DB | node -pe 'JSON.parse(require("fs").readFileSync(0)).id')
+node apps/cli/src/cli.ts approve plan $TASK --by you@local --db $DB
+node apps/cli/src/cli.ts workspace prepare $TASK --db $DB     # gate → checkpoint → isolated worktree
+node apps/cli/src/cli.ts task advance $TASK --db $DB          # walk the machine; denials exit 1
+node apps/cli/src/cli.ts task show $TASK --db $DB             # state + runs + audit trail
+```

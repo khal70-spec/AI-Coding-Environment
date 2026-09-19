@@ -1,6 +1,7 @@
 // @ai-coding-env/orchestrator — Plan §7/§32/§33, ADR-007.
-// Transition GUARDS over the core machine: approvals, checkpoints, green verify,
-// independent review. Pure logic; persistence + execution arrive in Phase 1/4.
+// Transition GUARDS over the core machine (pure kernel below) + the Phase 1 runtime:
+// TaskEngine (guarded transitions persisted to storage with audit) and
+// WorkspaceService (checkpoint → isolated worktree preparation).
 import type { AgentId, ModelId, RiskLevel, TaskState } from "../../core/src/index.ts";
 import { canTransition, fail, ok } from "../../core/src/index.ts";
 import type { Result } from "../../core/src/index.ts";
@@ -86,3 +87,8 @@ export function guardTransition(from: TaskState, to: TaskState, ctx: GuardContex
   }
   return ok(true);
 }
+
+export { TaskEngine, nextHappyPath, assembleGuardContext } from "./engine.ts";
+export type { EngineDeps, TransitionRequest, TransitionOutcome } from "./engine.ts";
+export { WorkspaceService } from "./workspace-service.ts";
+export type { WorkspaceDeps } from "./workspace-service.ts";

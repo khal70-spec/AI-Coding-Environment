@@ -11,10 +11,23 @@ run tests + security checks, review the diff, and safely roll back.
 
 ## Status
 
-**Phase 0 — Security & architecture foundation** (in progress).
+**v1.0.0 — GA on the local-first governed track** (611 tests green; deterministic,
+ed25519-signed, byte-reproducible artifacts). See
+[DoD review](./docs/release/dod-review.md), [readiness matrix](./docs/release/release-checklist.md),
+[CHANGELOG](./CHANGELOG.md), [project state](./docs/release/project-state.md).
 
-We build security first, UI last. See [`docs/backlog/`](./docs/backlog/) for the
-ordered implementation backlog and [`docs/adr/`](./docs/adr/) for decisions.
+Working today, fully offline: task state machine persisted to SQLite with an append-only
+audit trail, risk-gated approvals, checkpoint → isolated-git-worktree task workspaces,
+guarded (argv-only, redacted) Git execution, provider/model registry with budget lanes,
+agent composer (script-replay + local-openai adapters), context engine
+(index/pack/route), MCP + skills containment, hardened desktop bridge UI, and the
+`aice` operator CLI. Security posture is machine-enforced:
+`npm run security:gate` (secrets/dep-audit/supply-chain/SAST) + crash-recovery,
+backup/restore, deterministic release artifacts, the §53 golden-workflow suite, socket-level provider conformance,
+and a11y rules A1–A13 (computed WCAG AA contrast).
+
+See [`docs/backlog/`](./docs/backlog/) for the phase ledger and
+[`docs/adr/`](./docs/adr/) for decisions.
 
 ## Design principles
 
@@ -57,11 +70,11 @@ ai-coding-environment/
 │   └── user-guide/         # End-user documentation
 ├── tests/
 │   ├── unit/               # Policy, router, redaction, classifier, state machine
-│   ├── integration/        # Provider/Git/fs/MCP/terminal/SQLite
-│   ├── security/           # Traversal, injection, leakage, SSRF, bypass, IPC
-│   └── e2e/                # task → plan → approval → implement → test → review → rollback
-├── scripts/                # check-secrets, db-migrate, release helpers
-└── .github/workflows/      # CI with mandatory security gates
+│   ├── integration/        # SQLite migrations now; provider/Git/fs/MCP/terminal (Phase 1+)
+│   ├── security/           # Traversal, injection, leakage, SSRF, bypass, MCP
+│   └── e2e/                # task → … → rollback (Phase 4+)
+├── scripts/                # check-secrets, db-migrate, ci/ (workflow pending install)
+└── .github/workflows/      # CI with mandatory security gates (template ready in scripts/ci/)
 ```
 
 ## Task lifecycle
@@ -91,13 +104,21 @@ Full list: Plan §55.
 
 ## Development
 
+Requires **Node.js ≥ 22.18** (tests and the CLI run TypeScript via flag-free
+type-stripping; Node 24 LTS recommended).
+
 ```bash
-node --version   # >= 20
+node --version   # >= 22.18
 npm install
-npm test
+npm test                  # unit + security + integration
+npm run test:workspaces   # per-package suites
 npm run check:secrets
 npm run audit:deps
+npm run db:migrate        # apply SQLite migrations (idempotent, node:sqlite)
 ```
+
+Latest codebase audit (done / not-done / gaps fixed):
+[`docs/development/codebase-audit-2026-09-17.md`](./docs/development/codebase-audit-2026-09-17.md).
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md), [`docs/development/`](./docs/development/),
 [`CLAUDE.md`](./CLAUDE.md), [`AGENTS.md`](./AGENTS.md).

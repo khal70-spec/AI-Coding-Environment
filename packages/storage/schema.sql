@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS providers (
   max_classification TEXT NOT NULL DEFAULT 'internal'
     CHECK (max_classification IN ('public','internal','confidential','restricted')),
   enabled     INTEGER NOT NULL DEFAULT 1,
-  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  config_json TEXT NOT NULL DEFAULT '{}'  -- (002) adapter config blob; never secrets
 );
 
 CREATE TABLE IF NOT EXISTS provider_credentials (
@@ -100,8 +101,37 @@ CREATE TABLE IF NOT EXISTS models (
   verified        INTEGER NOT NULL DEFAULT 0,
   context_window  INTEGER NOT NULL,
   status          TEXT NOT NULL DEFAULT 'unverified',
-  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  cost_per_mtok_in REAL,   -- (003) declared cost rate per 1M input tokens (USD)
+  cost_per_mtok_out REAL   -- (003) declared cost rate per 1M output tokens (USD)
 );
+
+CREATE TABLE IF NOT EXISTS budgets (
+  id           TEXT PRIMARY KEY,
+  scope        TEXT NOT NULL CHECK (scope IN ('provider','model')),
+  scope_id     TEXT NOT NULL,
+  window       TEXT NOT NULL CHECK (window IN ('daily','weekly','monthly','total')),
+  limit_usd    REAL,
+  limit_tokens_in  INTEGER,
+  limit_tokens_out INTEGER,
+  hard_block   INTEGER NOT NULL DEFAULT 1,
+  created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_budgets_scope_window ON budgets(scope, scope_id, window);
+
+CREATE TABLE IF NOT EXISTS budget_events (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  provider_id TEXT NOT NULL,
+  model_id    TEXT,
+  task_id     TEXT,
+  tokens_in   INTEGER NOT NULL DEFAULT 0,
+  tokens_out  INTEGER NOT NULL DEFAULT 0,
+  cost_usd    REAL NOT NULL DEFAULT 0,
+  decision    TEXT NOT NULL CHECK (decision IN ('allowed','blocked')),
+  detail      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_budget_events_at ON budget_events(at);
 
 CREATE TABLE IF NOT EXISTS mcp_servers (
   id            TEXT PRIMARY KEY,
@@ -163,3 +193,34 @@ CREATE INDEX IF NOT EXISTS idx_runs_task ON runs(task_id);
 CREATE INDEX IF NOT EXISTS idx_audit_task ON audit_events(task_id);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action);
 CREATE INDEX IF NOT EXISTS idx_findings_task ON security_findings(task_id);
+
+CREATE TABLE IF NOT EXISTS agent_runs (
+  id              TEXT PRIMARY KEY,
+  task_id         TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  phase           TEXT NOT NULL CHECK (phase IN ('investigate','plan','implement')),
+  model_id        TEXT,
+  status          TEXT NOT NULL
+    CHECK (status IN ('completed','awaiting-approval','max-iterations','transport-error')),
+  rounds          INTEGER NOT NULL DEFAULT 0,
+  tool_calls      INTEGER NOT NULL DEFAULT 0,
+  denials         INTEGER NOT NULL DEFAULT 0,
+  transcript_json TEXT NOT NULL,
+  final_text      TEXT,
+  created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id);
+
+CREATE TABLE IF NOT EXISTS skills (
+  id               TEXT PRIMARY KEY,
+  name             TEXT NOT NULL UNIQUE,
+  version          TEXT,
+  source_path      TEXT NOT NULL,
+  sha256           TEXT NOT NULL,
+  permissions_json TEXT NOT NULL,
+  status           TEXT NOT NULL DEFAULT 'pending_review'
+    CHECK (status IN ('pending_review','approved','blocked')),
+  reviewed_by      TEXT,
+  reviewed_at      TEXT,
+  created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_skills_status ON skills(status);

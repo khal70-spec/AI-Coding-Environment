@@ -12,7 +12,7 @@ export interface CommandVerdict {
 }
 
 /** Shell metacharacters that indicate a raw-shell string instead of argv. */
-const SHELL_META = /[;&|`$(){}<>!#~*?\[\]\\"']/;
+const SHELL_META = /[;&|`$(){}<>!#~*?[\]\\"']/;
 
 export function looksLikeRawShell(input: string): boolean {
   return SHELL_META.test(input);
@@ -38,8 +38,8 @@ export function classifyCommand(argv: readonly string[]): CommandVerdict {
     reasons.push("probable credential/file exfiltration");
     return { risk: "blocked", reasons, neverExecute: true };
   }
-  if (joined.includes("curl") && joined.includes("|") && joined.includes("sh")) {
-    reasons.push("piped remote code execution (curl|sh)");
+  if (/\b(curl|wget|fetch)\b/.test(joined) && joined.includes("|") && /\b(bash|sh|zsh|dash|python|node|perl)\b/.test(joined)) {
+    reasons.push("piped remote code execution (download|interpreter)");
     return { risk: "blocked", reasons, neverExecute: false };
   }
   if (/\b(dd|mkfs|fdisk|parted)\b/.test(joined)) {
@@ -86,9 +86,15 @@ export function classifyCommand(argv: readonly string[]): CommandVerdict {
     reasons.push("git clean -fd destroys untracked work");
     return { risk: "blocked", reasons, neverExecute: false };
   }
-  if (/\bchmod\s+-r\s+777\b/.test(joined)) {
+  if (/\bchmod\s+(-[rxRf]+\s+)?(0?777|a\+w)\b/.test(joined) && /(-r|-R)\b/.test(joined)) {
     reasons.push("world-writable recursive chmod");
     return { risk: "blocked", reasons, neverExecute: false };
+  }
+  // Any world-writable mode (777/666/a+w) is elevated: not an unblockable shape, but
+  // never "unclassified medium" — approvals + audit attach at high.
+  if (/\bchmod\b/.test(joined) && /\b(0?777|0?666|a\+w)\b/.test(joined)) {
+    reasons.push("world-writable permissions (777/666/a+w)");
+    return { risk: "high", reasons, neverExecute: false };
   }
   if (/\b(iptables|ufw|firewall-cmd|setenforce)\b/.test(joined)) {
     reasons.push("firewall / MAC policy change");
@@ -99,6 +105,12 @@ export function classifyCommand(argv: readonly string[]): CommandVerdict {
     return { risk: "blocked", reasons, neverExecute: false };
   }
   // --- Elevated but approvable ---
+  // Inline script execution (-c/-e in argv): arbitrary code rides inside one argument
+  // and evades per-token classifiers — elevate so approval policy attaches.
+  if (/^((python3?|node|perl|ruby)\s+(-[ic]|-e)|((ba|z|da)?sh)\s+-c)\s/.test(joined)) {
+    reasons.push("interpreter inline-code flag (-c/-e)");
+    return { risk: "high", reasons, neverExecute: false };
+  }
   if (/^(sudo|su|doas)\b/.test(joined)) {
     reasons.push("privilege escalation prefix");
     return { risk: "high", reasons, neverExecute: false };

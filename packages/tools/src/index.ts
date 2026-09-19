@@ -34,3 +34,49 @@ export function validateToolCall(call: ToolCall): readonly string[] {
   if (typeof call.args !== "object" || call.args === null) errors.push("args must be an object");
   return Object.freeze(errors);
 }
+
+// Phase 3 runtime: tool contract, registry, policy funnel, sandboxed executors.
+export {
+  ToolError,
+  ToolRunner,
+  TOOL_MAX_OUTPUT_BYTES,
+  UNTRUSTED_TAG_CLOSE,
+  UNTRUSTED_TAG_OPEN,
+  trustTag,
+} from "./runtime.ts";
+export type {
+  ArgRule,
+  ExtendedResult,
+  PreflightHints,
+  Tool,
+  ToolContext,
+  ToolErrorCode,
+  ToolEvent,
+  ToolAuditSink,
+  ToolRunOutput,
+} from "./runtime.ts";
+export { FS_TOOLS, fsEdit, fsList, fsRead, fsSearch, fsWrite } from "./fs-tools.ts";
+export {
+  TERMINAL_DEFAULT_TIMEOUT_MS,
+  TERMINAL_MAX_OUTPUT_BYTES,
+  TERMINAL_MAX_TIMEOUT_MS,
+  TERMINAL_TOOLS,
+  TerminalPolicy,
+  execArgv,
+  sanitizedEnv,
+  terminalExec,
+} from "./terminal.ts";
+export type { ArgvRejection, TerminalExecResult } from "./terminal.ts";
+
+export { detectSandbox, findOnPath, sandboxMarker } from "./sandbox-detect.ts";
+export type { SandboxReport } from "./sandbox-detect.ts";
+export { GIT_TOOLS, gitExec } from "./git-tools.ts";
+export { STACK_TEST_COMMANDS, detectStack } from "./stack-detect.ts";
+export type { StackInfo, StackKind } from "./stack-detect.ts";
+export { TEST_RUNNER_TOOLS, normalizeTestResult, testExec } from "./test-runner-tool.ts";
+export type { NormalizedTestResult } from "./test-runner-tool.ts";
+
+export { SCANNER_IDS, SCANNER_TOOLS, countBySeverity, parseScannerOutput, scanExec, scannerArgv } from "./scanner-tools.ts";
+export type { NormalizedFinding, ScannerId } from "./scanner-tools.ts";
+export { BROWSER_TOOLS, browserFetch, checkEgressSafeHost, htmlToText, isPrivateOrMetadataHost } from "./browser-tool.ts";
+export type { UrlGateVerdict } from "./browser-tool.ts";

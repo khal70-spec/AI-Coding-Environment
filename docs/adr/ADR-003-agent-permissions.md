@@ -25,6 +25,11 @@ tools:      { allow: [fs.read, fs.write, search, git.diff, tests.run], deny: [sh
 maxRisk: medium            # high-risk actions always need human approval
 ```
 
+> **Clarification (2026-09-17):** the YAML above illustrates the manifest *shape*; the
+> canonical tool identifiers are `KNOWN_TOOLS` in `packages/agents/src/index.ts`
+> (e.g. `search.exact`, `git.read`, `terminal.run`). Unknown tools are denied by the
+> policy engine and rejected by `validateManifest`.
+
 The policy engine evaluates **every** tool call against: manifest + task risk level +
 workspace policy + global policy → `allow | approval | deny`. Agents cannot modify their
 own manifest; changes are audited user/admin actions.

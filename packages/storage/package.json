@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/storage",
-  "version": "0.1.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "SQLite schema, migrations, and table inventory (no secret values)",
@@ -13,6 +13,6 @@
     "migrations"
   ],
   "scripts": {
-    "test": "node --test \"../../../tests/unit/storage/**/*.test.mjs\""
+    "test": "node --test \"../../tests/unit/storage/**/*.test.mjs\""
   }
 }

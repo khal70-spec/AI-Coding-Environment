@@ -9,8 +9,11 @@ kernel tests. **No full UI.**
 - [x] Frozen master spec (`AI_Coding_Environment_End_to_End_Plan.md`)
 - [x] `README.md`, `CLAUDE.md`, `AGENTS.md`, `SECURITY.md`, `CONTRIBUTING.md`
 - [x] Root `package.json` (workspaces), `tsconfig.base.json`, `.editorconfig`, `.gitignore`
-- [x] `scripts/check-secrets.mjs` + `scripts/db-migrate.mjs`
-- [x] CI with security gates (`.github/workflows/ci.yml`)
+- [x] `scripts/check-secrets.mjs` + `scripts/db-migrate.mjs` (zero-dep `node:sqlite`, idempotent)
+- [ ] CI with security gates (`.github/workflows/ci.yml`) — *workflow authored in the
+  2026-09-17 audit at `scripts/ci/ci.yml` (all gates verified locally); installing it
+  into `.github/workflows/` is blocked on the automation token's `workflows` permission
+  — one-step install: [`scripts/ci/README.md`](../../scripts/ci/README.md)*
 
 ## P0.2 Threat model & policies (Plan §44/45, §57.4–5)
 
@@ -52,10 +55,21 @@ Pure-logic kernels with unit + security tests (zero runtime deps):
 
 - [x] `tests/unit/` — state machine, policy matrix, redaction, classifiers, manifests
 - [x] `tests/security/` — traversal, injection, leakage, SSRF, bypass, dangerous commands
-- [x] `npm test` green (141/141); `npm run check:secrets` green; `npm audit` clean
+- [x] `tests/integration/` — migration runner on real SQLite (added in the 2026-09-17 audit)
+- [x] `npm test` green (146/146 — includes drift-guard + integration tests);
+  `npm run test:workspaces` green with non-zero pass counts per package;
+  `npm run check:secrets` green; `npm audit` clean
+- [x] Storage drift guard: `schema.sql` mirror of `migrations/` enforced by test (audit)
 
 ## P0.6 Phase-gate review
 
-- [ ] Threat-model re-read; residual risks accepted explicitly
-- [ ] Definition-of-Done spot check (Plan §51 — Phase 0 subset)
-- [ ] Tag `phase-0-complete`, open Phase 1 backlog
+- [x] Threat-model re-read; residual risks accepted explicitly →
+  [`docs/development/phase-0-gate-review.md`](../development/phase-0-gate-review.md)
+- [x] Definition-of-Done spot check (Plan §51 — Phase 0 subset) → same doc
+- [x] Tag `phase-0-complete`, open Phase 1 backlog →
+  [`docs/backlog/phase-1-core-runtime.md`](./phase-1-core-runtime.md)
+
+## Audit
+
+2026-09-17 full-repo audit (12 gaps found + fixed, incl. silent per-package test globs
+and the missing CI workflow): [`docs/development/codebase-audit-2026-09-17.md`](../development/codebase-audit-2026-09-17.md).

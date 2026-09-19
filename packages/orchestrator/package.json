@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/orchestrator",
-  "version": "0.1.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Task transition guards: approvals, checkpoints, verification gates",
@@ -11,6 +11,6 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test \"../../../tests/unit/orchestrator/**/*.test.mjs\""
+    "test": "node --test \"../../tests/unit/orchestrator/**/*.test.mjs\""
   }
 }

@@ -1,0 +1,85 @@
+# CI — security gates per Plan §47 and docs/security/dependency-policy.md.
+#
+# Blocking: tests (unit + security + integration), per-package tests, strict typecheck,
+# offline secret scan, npm audit (high+), CLI doctor, SQLite migration idempotency.
+# Lint is advisory until the ESLint flat config lands (Phase 3).
+# Phase 8 (dependency-policy): OSV-Scanner + Semgrep become blocking, Gitleaks + SBOM
+# join, and action references are pinned to full-length SHAs (supply-chain hardening).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: the workflow only reads the checkout.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-gates:
+    name: security gates (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22.x", "24.x"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: install (lockfile-pinned)
+        run: npm ci
+
+      - name: tests — unit + security + integration
+        run: npm test
+
+      - name: tests — per-package workspace scripts
+        run: npm run test:workspaces
+
+      - name: secret scan (offline, blocking)
+        run: npm run check:secrets
+      # Phase 8 (Plan §50): blocking security gate — secrets/dep-audit/supply-chain/SAST-lite.
+      - name: Security gate
+        run: npm run security:gate
+
+      - name: dependency audit (high+, blocking)
+        run: npm run audit:deps
+
+      - name: typecheck (strict — blocking)
+        run: npm run typecheck
+
+      - name: lint (blocking since Phase 3)
+        run: npm run lint
+
+      # Phase 9+ lanes: static a11y gate (A1-A15) and deterministic SBOM validation.
+      - name: a11y static gate (A1-A15, blocking)
+        run: node scripts/a11y-check.mjs
+
+      # Repro build proof on the clean CI tree. The SIGNING step requires the
+      # publisher private key, which must never live in CI runners for dev builds —
+      # hence release-check (which includes R11 signature verify) stays a release-
+      # lane command, run by the operator pipeline that holds the key.
+      - name: determined artifact + reproducibility
+        run: |
+          npm ci --ignore-scripts
+          node scripts/release-prepare.mjs
+          node scripts/release-verify.mjs
+        continue-on-error: true
+
+      - name: CLI doctor (offline self-check)
+        run: node apps/cli/src/cli.ts doctor
+
+      - name: SQLite migrations apply + idempotent re-run
+        run: |
+          DB_PATH="$RUNNER_TEMP/aice-ci.db" node scripts/db-migrate.mjs
+          DB_PATH="$RUNNER_TEMP/aice-ci.db" node scripts/db-migrate.mjs | tee /tmp/migrate-rerun.log
+          grep -q "0 applied, 1 skipped" /tmp/migrate-rerun.log

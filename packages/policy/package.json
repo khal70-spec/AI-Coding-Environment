@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/policy",
-  "version": "0.1.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Policy engine kernel: allow / approval / deny evaluation",
@@ -11,6 +11,6 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test \"../../../tests/unit/policy/**/*.test.mjs\" \"../../../tests/security/permission-bypass.test.mjs\""
+    "test": "node --test \"../../tests/unit/policy/**/*.test.mjs\" \"../../tests/security/permission-bypass.test.mjs\""
   }
 }

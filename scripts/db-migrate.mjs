@@ -1,24 +1,43 @@
-// db-migrate.mjs — Phase 0 placeholder. Applies SQL migrations in packages/storage/migrations/*.sql
-// to a local SQLite file. Requires `sqlite3` CLI for now; a better-sqlite3 driver lands in Phase 1.
+// db-migrate.mjs — operator script: applies packages/storage/migrations to a SQLite
+// file. Thin wrapper over the SHARED runner in packages/storage/src/migrate.ts (the
+// same code the app boot path calls — migration logic lives exactly once).
+// Zero external deps (node:sqlite, Node >= 22.18). Idempotent: re-runs skip.
 // Usage: DB_PATH=./.local/app.db node scripts/db-migrate.mjs
-import { readdirSync, readFileSync, existsSync, mkdirSync } from "node:fs";
-import { execSync } from "node:child_process";
-import { dirname, join } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const dir = join(root, "packages/storage/migrations");
-const dbPath = process.env.DB_PATH ?? join(root, ".local/app.db");
+const dbPath = resolve(process.env.DB_PATH ?? join(root, ".local/app.db"));
+
+let DatabaseSync;
+try {
+  ({ DatabaseSync } = await import("node:sqlite"));
+} catch {
+  console.error("db:migrate — node:sqlite unavailable. Requires Node >= 22.18 (see package.json engines).");
+  process.exit(1);
+}
+const { applyMigrations, defaultMigrationsDir, MigrationError } = await import(
+  join(root, "packages/storage/src/migrate.ts")
+);
 
 mkdirSync(dirname(dbPath), { recursive: true });
-const files = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".sql")).sort() : [];
-if (files.length === 0) {
-  console.log("db:migrate — no migrations yet (Phase 1 will add 001_initial.sql). Nothing to do.");
-  process.exit(0);
+const db = new DatabaseSync(dbPath);
+let report;
+try {
+  report = applyMigrations(db, defaultMigrationsDir());
+} catch (err) {
+  if (err instanceof MigrationError) {
+    console.error(`db:migrate — FAILED: ${err.message}`);
+    console.error("db:migrate — rolled back. Fix the migration and re-run; applied versions are resumable.");
+    process.exit(1);
+  }
+  throw err;
+} finally {
+  db.close();
 }
-for (const f of files) {
-  const sql = readFileSync(join(dir, f), "utf8");
-  console.log(`db:migrate — applying ${f} → ${dbPath}`);
-  execSync(`sqlite3 ${JSON.stringify(dbPath)}`, { input: sql, stdio: ["pipe", "inherit", "inherit"] });
-}
-console.log("db:migrate — done.");
+for (const f of report.skipped) console.log(`db:migrate — skipping ${f} (already applied)`);
+for (const f of report.applied) console.log(`db:migrate — applied ${f} → ${dbPath}`);
+console.log(
+  `db:migrate — done (${report.applied.length} applied, ${report.skipped.length} skipped, ${report.total} total).`,
+);
