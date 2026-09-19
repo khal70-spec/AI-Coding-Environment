@@ -19,4 +19,6 @@ Policy: **never** silence a flaky test by removing/loosening it. Triage, then fi
 ## Recordkeeping
 - Note transient events in the commit message as evidence (never silently).
 - `v1.0.1` line: one blank-TAP flicker observed once during a suite run under high memory
-  load; two immediate re-runs 612/612; no code changed between runs.
+  load; two immediate re-runs 612/612; no code changed between runs. Two further events during v1.0.2 evaluation
+(blank TAP line, 613/614); three immediate re-runs 614/614 at full load — environmental,
+kept as recorded transient per this ladder.
