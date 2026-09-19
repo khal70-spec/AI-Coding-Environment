@@ -1,6 +1,6 @@
 # Project state — end-to-end production readiness (2026-09-19)
 
-**Headline: ~90% (89.7%) to the end-to-end production target** — recomputed 2026-09-19 after the Phase 10 depth increment (`docs/development/phase-10-gate-review.md`). Original baseline at Phase 9 close-out: 87%. How that number is derived
+**Headline: ~91% (90.8%) to the end-to-end production target** — recomputed 2026-09-19 after Phase 10 + Phase 11 depth increments (`docs/development/phase-10-gate-review.md`, `phase-11-gate-review.md`). Baseline at Phase 9 close-out: 87% → 89.7% (Ph.10) → 90.8% (Ph.11). How that number is derived
 below — weighted capability domains against the master plan (`AI_Coding_Environment_End_to_End_Plan.md`),
 not vibes. Each row links its evidence.
 
@@ -57,14 +57,14 @@ for explicit deferrals. No row gets credit without gate evidence.
 | Agents | 12% | **93%** | A9 + adapter loop proven against conformance harness (Phase 10) |
 | Context & routing | 8% | 95% | A10 |
 | MCP / skills / plugins | 10% | 85% | A11; discount: OAuth remote + marketplace (B4) |
-| Desktop product (packaged) | 13% | **62%** | kernel (A12), POC app + a11y + **diff-viewer lane** (Phase 10); native shell + tray + signing + update pending (B1/B2/B9) — shell lanes probe-blocked in sandbox with evidence |
-| Security hardening | 8% | **94%** | A4/A14 + **unicode canonicalization + confusables lane** (Phase 10, monotonic w/ hygiene class); discount narrows to model-backed multilingual (B5) + CI-depth (B6) |
-| Production ops & release | 6% | **93%** | A15 + **CycloneDX 1.5 SBOM lane, deterministic** (Phase 10); discount narrows to signed binaries + SHA-pinned CI (B2/B6) |
+| Desktop product (packaged) | 13% | **68%** | kernel (A12), POC app with a11y A1–A13 depth + **diff-viewer + merge-preview lanes** (Ph.10/11); native shell + tray + binary signing + update pending (B1/B2/B9) — shell lanes probe-blocked in sandbox (three datapoints, gate review) |
+| Security hardening | 8% | **96%** | A4/A14 + unicode canonical lane (Ph.10) + **a11y static depth A10–A13 incl. computed WCAG AA contrast** (Ph.11); discount narrows to model-backed multilingual (B5) + CI-depth (B6) |
+| Production ops & release | 6% | **96%** | A15 + SBOM lane (Ph.10) + **ed25519 signed artifact chain w/ pinned publisher key** (Ph.11); discount narrows to binary signing inside the shell + SHA-pinned CI actions (B2/B6) |
 | Documentation & process rails | 4% | 95% | A16; ragged edge: runbook series for exploit playbooks |
 
-**Weighted total = 89.7% ≈ 90%** (0.15×1.00 + 0.12×0.92 + 0.12×0.95 + 0.12×0.93 +
-0.08×0.95 + 0.10×0.85 + 0.13×0.62 + 0.08×0.94 + 0.06×0.93 + 0.04×0.95 = 0.8974).
-Phase-9 baseline was 87%; the Phase-10 increment moved +2.7 points across five domains.
+**Weighted total = 90.8% ≈ 91%** (0.15×1.00 + 0.12×0.92 + 0.12×0.95 + 0.12×0.93 +
+0.08×0.95 + 0.10×0.85 + 0.13×0.68 + 0.08×0.96 + 0.06×0.96 + 0.04×0.95 = 0.9078).
+Trajectory: 87% (Ph.9) → 89.7% (Ph.10) → 90.8% (Ph.11).
 
 Interpretation: the **governed, offline-first core (73% of the weighted product) is
 effectively production-done** (weighted attainment ≥ 85% in every core domain). The
@@ -82,7 +82,7 @@ rather than unresolved unknowns.
 
 ## D. Bottom line
 
-The repo you hold is a **release-candidate governed environment (605 tests, SBOM'd, reproducible)**: deterministic builds,
+The repo you hold is a **release-candidate governed environment (611 tests, SBOM'd, ed25519-signed, reproducible)**: deterministic builds,
 blocking security gates, crash-proof storage, golden workflow to MERGED, and a clean
 3,000→263-file disciplined tree. It can be operated end-to-end today in its local-first
 offline form; the 13-point gap is scheduled product work, not engineering risk.

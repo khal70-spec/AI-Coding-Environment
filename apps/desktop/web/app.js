@@ -82,7 +82,7 @@ async function renderProjects(main) {
     );
     table.append(row);
   }
-  main.append(el("div", { class: "panel" }, el("h3", {}, `projects (${state.projects.length})`,), form, table));
+  main.append(el("div", { class: "panel" }, el("h2", {}, `projects (${state.projects.length})`,), form, table));
 }
 
 async function renderTasks(main) {
@@ -120,7 +120,7 @@ async function renderTasks(main) {
     ));
   }
   main.append(el("div", { class: "panel" },
-    el("h3", {}, "tasks"),
+    el("h2", {}, "tasks"),
     picker,
     create,
     state.projectId === null ? el("p", { class: "muted" }, "create a project first (Projects tab)") : el("div", {}, table),
@@ -131,7 +131,7 @@ async function renderTasks(main) {
 async function renderTaskDetail(main, taskId) {
   const b = await bridge("tasks.bundle", { taskId });
   const wrap = el("div", { class: "panel" });
-  wrap.append(el("h3", {}, `task ${b.task.title}`), el("div", { class: "detail-block" }, stateTag(b.task.state), el("span", { class: "muted" }, ` ${b.task.id} · risk ${b.task.risk} · ${b.task.classification}`)));
+  wrap.append(el("h2", {}, `task ${b.task.title}`), el("div", { class: "detail-block" }, stateTag(b.task.state), el("span", { class: "muted" }, ` ${b.task.id} · risk ${b.task.risk} · ${b.task.classification}`)));
   // actions
   const actions = el("div", {});
   const adv = el("select", { id: "adv-to" });
@@ -143,12 +143,12 @@ async function renderTaskDetail(main, taskId) {
     el("button", { class: "act", onclick: async () => { try { await bridge("approvals.record", { taskId, kind: "final" }); } catch (e) { alert(e.message); } await render(); } }, "approve final"),
     el("button", { class: "act", onclick: async () => { const r = prompt("reason (BLOCKED):") ?? ""; try { await bridge("tasks.fail", { taskId, to: "BLOCKED", reason: r }); } catch (e) { alert(e.message); } await render(); } }, "block"),
   );
-  wrap.append(el("h4", {}, "evidence & actions"), actions);
+  wrap.append(el("h3", {}, "evidence & actions"), actions);
   // worktree diff lane (read-only; task-scoped, base→working-tree via bridge)
   try {
     const d = await bridge("tasks.diff", { taskId });
     if (d.workspace !== null) {
-      wrap.append(el("h4", {}, `diff (${d.workspace.branch} @ base ${d.workspace.baseSha.slice(0, 8)})`));
+      wrap.append(el("h3", {}, `diff (${d.workspace.branch} @ base ${d.workspace.baseSha.slice(0, 8)})`));
       if (d.stat.trim() === "") {
         wrap.append(el("p", { class: "muted" }, "no changes vs base SHA"));
       } else {
@@ -158,13 +158,30 @@ async function renderTaskDetail(main, taskId) {
   } catch (e) {
     wrap.append(el("p", { class: "muted" }, `diff unavailable: ${e.message}`));
   }
+  // merge preview lane (read-only, synthetic merge-tree — never touches any worktree)
+  try {
+    const mp = await bridge("tasks.mergepreview", { taskId });
+    if (mp.workspace !== null) {
+      wrap.append(el("h3", {}, "merge preview"));
+      if (mp.targetRef === null || mp.mergeable === null) {
+        wrap.append(el("p", { class: "muted" }, "no workspace yet — nothing to preview"));
+      } else if (mp.mergeable) {
+        wrap.append(el("p", {}, tag("ok", `merges cleanly into ${mp.targetRef}`)));
+      } else {
+        wrap.append(el("p", {}, tag("warn", `merging into ${mp.targetRef} conflicts:`)),
+          el("ul", {}, ...mp.conflicts.map((f) => el("li", {}, el("code", {}, f)))));
+      }
+    }
+  } catch (e) {
+    wrap.append(el("p", { class: "muted" }, `merge preview unavailable: ${e.message}`));
+  }
   // runs timeline
-  wrap.append(el("h4", {}, "transitions"));
+  wrap.append(el("h3", {}, "transitions"));
   const runsT = el("table"); runsT.append(el("tr", {}, el("th", {}, "at"), el("th", {}, "from → to"), el("th", {}, "agent/model"), el("th", {}, "summary")));
   for (const r of b.runs) runsT.append(el("tr", {}, el("td", {}, txt(r.startedAt)), el("td", {}, `${r.fromState} → ${r.toState}`), el("td", {}, txt(r.modelId ?? r.agent)), el("td", { class: "muted" }, txt(r.summary ?? ""))));
   wrap.append(runsT);
   // agent sessions
-  wrap.append(el("h4", {}, `agent sessions (${b.agentRuns.length})`));
+  wrap.append(el("h3", {}, `agent sessions (${b.agentRuns.length})`));
   for (const ar of b.agentRuns) {
     wrap.append(el("div", { class: "detail-block" },
       el("div", {}, tag("info", ar.phase), tag(ar.status === "completed" ? "ok" : "warn", ar.status), el("span", { class: "muted" }, ` rounds ${ar.rounds} · tools ${ar.toolCalls} · denials ${ar.denials} · ${ar.modelId ?? "script-replay"} · ${ar.createdAt}`)),
@@ -173,11 +190,11 @@ async function renderTaskDetail(main, taskId) {
     ));
   }
   // test results + findings
-  wrap.append(el("h4", {}, `test results (${b.testResults.length}) · findings (${b.findings.length})`));
+  wrap.append(el("h3", {}, `test results (${b.testResults.length}) · findings (${b.findings.length})`));
   const tr = el("table"); tr.append(el("tr", {}, el("th", {}, "suite"), el("th", {}, "passed"), el("th", {}, "failed"), el("th", {}, "skipped"), el("th", {}, "at")));
   for (const t of b.testResults) tr.append(el("tr", {}, el("td", {}, txt(t.suite)), el("td", {}, String(t.passed)), el("td", {}, String(t.failed)), el("td", {}, String(t.skipped)), el("td", { class: "muted" }, txt(t.recordedAt ?? t.at ?? ""))));
   wrap.append(tr);
-  wrap.append(el("h4", {}, "audit (content-free)"));
+  wrap.append(el("h3", {}, "audit (content-free)"));
   for (const ev of b.audit) wrap.append(el("div", { class: "muted" }, `#${ev.id} ${ev.at} ${ev.actor} · ${ev.action} ${ev.decision ?? ""}`));
   main.append(wrap);
 }
@@ -205,7 +222,7 @@ async function renderAgents(main) {
       }
     }
   }
-  main.append(el("div", { class: "panel" }, el("h3", {}, "agent sessions (all projects)"), table));
+  main.append(el("div", { class: "panel" }, el("h2", {}, "agent sessions (all projects)"), table));
 }
 
 async function renderMcp(main) {
@@ -219,7 +236,7 @@ async function renderMcp(main) {
       el("td", {}, el("button", { class: "act", onclick: async () => { await bridge("mcp.toggle", { id: r.id, enabled: !r.enabled }); await render(); } }, r.enabled ? "disable" : "enable")),
     ));
   }
-  main.append(el("div", { class: "panel" }, el("h3", {}, `mcp servers (${rows.length})`), table, el("p", { class: "muted" }, "add/invoke via: aice mcp add & aice mcp invoke (gates, audit, approvals)")));
+  main.append(el("div", { class: "panel" }, el("h2", {}, `mcp servers (${rows.length})`), table, el("p", { class: "muted" }, "add/invoke via: aice mcp add & aice mcp invoke (gates, audit, approvals)")));
 }
 
 async function renderSkills(main) {
@@ -234,7 +251,7 @@ async function renderSkills(main) {
       el("td", { class: "muted" }, txt(r.reviewedBy ?? "—")),
     ));
   }
-  main.append(el("div", { class: "panel" }, el("h3", {}, `skills (${rows.length})`), table, el("p", { class: "muted" }, "tamper-check + consent travel through: aice skill review → aice skill approve (digest mismatch = automatic block)")));
+  main.append(el("div", { class: "panel" }, el("h2", {}, `skills (${rows.length})`), table, el("p", { class: "muted" }, "tamper-check + consent travel through: aice skill review → aice skill approve (digest mismatch = automatic block)")));
 }
 
 async function renderAudit(main) {
@@ -253,7 +270,7 @@ async function renderAudit(main) {
       }
     }
   }
-  main.append(el("div", { class: "panel" }, el("h3", {}, "audit trail (redacted, append-only)"), table));
+  main.append(el("div", { class: "panel" }, el("h2", {}, "audit trail (redacted, append-only)"), table));
 }
 
 const views = {

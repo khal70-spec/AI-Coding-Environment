@@ -53,7 +53,66 @@ for (const path of files(WEB)) {
   }
 }
 
-console.log(`# a11y-check — apps/desktop/web static rules A1-A9`);
+// A10: <html lang> present (index.html)
+{
+  const html = readFileSync(join(WEB, "index.html"), "utf8");
+  if (!/<html\s+[^>]*lang=/.test(html)) violations.push(`A10 index.html: <html lang> missing`);
+  const h1Count = (html.match(/<h1[\s>]/g) ?? []).length;
+  if (h1Count !== 1) violations.push(`A11 index.html: exactly one <h1> required (found ${h1Count})`);
+}
+
+// A11: heading levels never skip (DOM emission order: index.html, then app.js literals)
+{
+  const html = readFileSync(join(WEB, "index.html"), "utf8");
+  const js = readFileSync(join(WEB, "app.js"), "utf8");
+  const seq = [...html.matchAll(/<h([1-6])[\s>]/g)].map((m) => Number(m[1]));
+  seq.push(...[...js.matchAll(/el\("h([1-6])"/g)].map((m) => Number(m[1])));
+  for (let i = 1; i < seq.length; i += 1) {
+    if (seq[i] > seq[i - 1] + 1) {
+      violations.push(`A11 heading skip: h${seq[i - 1]} followed by h${seq[i]} (position ${i})`);
+      break;
+    }
+  }
+}
+
+// A12: any animation must honor prefers-reduced-motion
+{
+  const css = readFileSync(join(WEB, "app.css"), "utf8");
+  const usesMotion = /@keyframes|animation\s*:|transition\s*:/.test(css);
+  if (usesMotion && !/prefers-reduced-motion/.test(css)) {
+    violations.push(`A12 app.css: motion present with no prefers-reduced-motion pairing`);
+  }
+}
+
+// A13: WCAG AA contrast (4.5:1) for every text-bearing token pair on dark bg.
+{
+  const css = readFileSync(join(WEB, "app.css"), "utf8");
+  const rootDecl = /:root\{([^}]*)\}/.exec(css)?.[1] ?? "";
+  const tok = Object.fromEntries([...rootDecl.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})/g)].map((m) => [m[1], m[2].toLowerCase()]));
+  const lum = (hex) => {
+    const ch = (i) => {
+      const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5);
+  };
+  const ratio = (a, b) => {
+    const [hi, lo] = [Math.max(lum(a), lum(b)), Math.min(lum(a), lum(b))];
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  // text-bearing pairs actually used: fg on bg/panel; muted on bg/panel; accent on panel;
+  // semantic tag colors on panel; nav accent text on panel
+  const pairs = [["fg", "bg"], ["fg", "panel"], ["muted", "bg"], ["muted", "panel"], ["accent", "panel"], ["ok", "panel"], ["bad", "panel"], ["warn", "panel"]];
+  const failures = [];
+  for (const [fg, bg] of pairs) {
+    if (tok[fg] === undefined || tok[bg] === undefined) continue;
+    const r = ratio(tok[fg], tok[bg]);
+    if (r < 4.5) failures.push(`${fg} on ${bg} = ${r.toFixed(2)}:1`);
+  }
+  if (failures.length > 0) violations.push(`A13 contrast (AA 4.5:1): ${failures.join("; ")}`);
+}
+
+console.log(`# a11y-check — apps/desktop/web static rules A1-A13`);
 for (const n of notes) console.log(`NOTE       ${n}`);
 if (violations.length > 0) {
   for (const v of violations) console.log(`VIOLATION  ${v}`);

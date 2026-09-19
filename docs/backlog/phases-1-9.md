@@ -153,3 +153,13 @@ implementer, tester, security reviewer, code reviewer, docs/release agents. Test
 - [x] Diff-viewer bridge lane `tasks.diff` + SPA surface (13/13 ui suites; a11y GREEN)
 - [x] Native-shell lanes probed + evidence recorded (rustc/webkit/rustup absent; R1 policy makes the React port a packaged-product decision)
 - Gates: 605/605, lint 0, tsc 0, security-gate GREEN → `docs/development/phase-10-gate-review.md`
+
+
+## Phase 11 — release hardening increment (post-Phase-10) — DONE (offline lanes)
+
+- [x] ed25519 release signing chain (pinned publisher key; tamper/wrong-key fail-closed; 3/3)
+- [x] Merge-preview lane: `GitRunner.runAllowExit` kernel extension + `tasks.mergepreview` via merge-tree + SPA panel (16/16 ui suites)
+- [x] a11y depth A10–A13 (lang, single-h1 + no-skip, reduced-motion, computed WCAG AA contrast) — 4 real fix-ups shipped, GREEN 0 notes
+- [x] Runbooks: security-incident + provider-failure
+- [x] Native-shell trunk final environment evidence (uid 1001/no-root, apt denied, rustup unreachable — third datapoint); divergence held at ADR-001 + bridge-kernel continuity
+- Gates: 611/611, lint 0, tsc 0, security-gate GREEN, a11y GREEN → `docs/development/phase-11-gate-review.md`

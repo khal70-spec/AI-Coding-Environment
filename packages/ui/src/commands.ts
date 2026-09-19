@@ -124,6 +124,29 @@ export function buildBridge(): BridgeRegistry<UiServices> {
       },
     },
     {
+      id: "tasks.mergepreview",
+      args: { taskId: ID },
+      run: (s, a) => {
+        const t = s.tasks.get(a["taskId"] as string);
+        const project = s.projects.get(t.projectId);
+        const ws = s.workspaces.listByProject(t.projectId).filter((w) => w.taskId === t.id).at(-1);
+        if (ws === undefined) return { task: t, workspace: null, mergeable: null, conflicts: [], targetRef: null };
+        const projectRunner = new GitRunner(project.rootPath);
+        const targetRef = projectRunner.run(["git", "rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
+        const wtRunner = new GitRunner(ws.path.startsWith("/") ? ws.path : `${project.rootPath}/${ws.path}`);
+        // merge-tree computes the synthetic merge result WITHOUT touching any worktree
+        // or index: status 0 = clean, 1 = conflicts (conflict lines on stdout).
+        const res = wtRunner.runAllowExit(["git", "merge-tree", "--write-tree", targetRef, ws.branch], [1]);
+        const conflicts = res.stdout.split("\n")
+          .map((l) => /^CONFLICT \([^)]+\): Merge conflict in (.+)$/.exec(l))
+          .filter((m) => m !== null)
+          .map((m) => m[1]);
+        const mergeable = res.status === 0;
+        s.audit.append({ actor: s.actor, action: "ui.task.mergepreview", target: t.id, projectId: t.projectId, taskId: t.id });
+        return { task: t, workspace: ws, targetRef, mergeable, conflicts };
+      },
+    },
+    {
       id: "tasks.bundle",
       args: { taskId: ID },
       run: (s, a) => {

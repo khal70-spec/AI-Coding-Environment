@@ -1,8 +1,8 @@
-:root{--bg:#0e1116;--panel:#161b22;--fg:#e6edf3;--muted:#8b949e;--line:#30363d;--accent:#58a6ff;--ok:#3fb950;--bad:#f85149;--warn:#d29922}
+:root{--bg:#0e1116;--panel:#161b22;--fg:#e6edf3;--muted:#9aa7b4;--line:#30363d;--accent:#58a6ff;--ok:#3fb950;--bad:#f85149;--warn:#d29922}
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.5 ui-sans-serif,system-ui,sans-serif;background:var(--bg);color:var(--fg)}
 #top{padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);letter-spacing:.02em}
-#top strong{color:var(--accent)}
+#top h1.brand{color:var(--accent);margin:0;font-size:1.15em;letter-spacing:.02em}
 #nav{display:flex;gap:4px;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
 #nav button{background:none;border:1px solid var(--line);color:var(--fg);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:13px}
 #nav button.active{border-color:var(--accent);color:var(--accent)}
@@ -27,7 +27,7 @@ button.act:focus-visible,a:focus-visible,[role=button]:focus-visible{outline:2px
 pre{white-space:pre-wrap;word-break:break-word;background:#0a0d11;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px;max-height:420px;overflow:auto}
 .state{font-weight:600}
 .detail-block{margin:8px 0}
-h3,h4{margin:14px 0 6px}
+h2,h3{margin:14px 0 6px}
 select,input[type=text]{background:#0a0d11;border:1px solid var(--line);color:var(--fg);padding:6px 8px;border-radius:6px;font-size:13px}
 form.inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
 form.inline label{font-size:12.5px;color:var(--muted)}
@@ -40,3 +40,7 @@ code{font-family:ui-monospace,monospace;font-size:12.5px;color:#a5d6ff}
 /* diff lane */
 .diff-stat { background: #0e1626; border: 1px solid #22304a; padding: 8px; overflow-x: auto; white-space: pre; }
 .diff-patch { max-height: 380px; overflow-y: auto; background: #0a1220; border: 1px solid #22304a; padding: 8px; white-space: pre-wrap; word-break: break-all; }
+
+
+/* A12: motion respect */
+@media (prefers-reduced-motion: reduce){.flash{animation:none}}

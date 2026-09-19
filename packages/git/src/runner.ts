@@ -104,6 +104,46 @@ export class GitRunner {
     };
   }
 
+  /**
+   * Like run(), but non-zero exits in `acceptable` return the result instead of
+   * throwing (for intentional multi-exit tools like merge-tree: 0=clean, 1=conflict).
+   * Same argv-only/safety/classifier/redaction discipline; stderr always redacted.
+   */
+  runAllowExit(argv: readonly string[], acceptable: readonly number[]): GitRunResult & { readonly status: number } {
+    if (!Array.isArray(argv) || argv.some((a) => typeof a !== "string")) {
+      throw new GitSafetyError("NOT_ARGV", "git runner accepts argv arrays only — never raw shell strings");
+    }
+    if (argv[0] !== "git") {
+      throw new GitSafetyError("NOT_GIT", `argv[0] must be "git", got: ${String(argv[0])}`);
+    }
+    const destructive = isDestructiveGitArgs(argv);
+    if (destructive.destructive) {
+      throw new GitSafetyError("BLOCKED_COMMAND", `destructive git argv denied: ${destructive.reason ?? "unknown"}`);
+    }
+    const verdict = classifyCommand(argv);
+    if (verdict.risk === "blocked") {
+      throw new GitSafetyError("BLOCKED_COMMAND", `classifier blocked argv: ${verdict.reasons.join("; ")}`);
+    }
+    try {
+      const out = execFileSync("git", argv.slice(1), {
+        cwd: this.root, encoding: "utf8", maxBuffer: MAX_BUFFER,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, stdio: ["ignore", "pipe", "pipe"],
+      });
+      const ro = redact(out);
+      return { stdout: ro.text, stderr: "", redactedKinds: Object.freeze([...ro.hits]), status: 0 };
+    } catch (err) {
+      const e = err as { status?: number; stdout?: string; stderr?: string; message?: string };
+      const status = typeof e.status === "number" ? e.status : -1;
+      if (!acceptable.includes(status)) {
+        const rErr = redact(e.stderr ?? e.message ?? "git failed");
+        throw new GitSafetyError("EXEC_FAILED", `git exited ${String(status)}: ${rErr.text.trim().slice(0, 500)}`);
+      }
+      const ro = redact(e.stdout ?? "");
+      const re = redact(e.stderr ?? "");
+      return { stdout: ro.text, stderr: re.text, redactedKinds: Object.freeze([...ro.hits, ...re.hits]), status };
+    }
+  }
+
   /** True when root is inside a git work tree. */
   isInsideWorkTree(): boolean {
     try {

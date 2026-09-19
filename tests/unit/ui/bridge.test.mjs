@@ -144,6 +144,7 @@ describe("buildBridge commands (live services)", () => {
       "tasks.diff",
       "tasks.fail",
       "tasks.list",
+      "tasks.mergepreview",
       "tasks.show",
     ]);
   });
@@ -270,5 +271,84 @@ describe("tasks.diff lane (Phase 10 diff viewer)", () => {
     const r = await registry.dispatch(services, { command: "tasks.diff", args: { taskId: tB.id } });
     assert.equal(r.ok, true);
     assert.equal(r.data.workspace, null);
+  });
+});
+
+describe("tasks.mergepreview lane (Phase 11)", () => {
+  let tmp;
+  let services;
+  let registry;
+  before(() => {
+    tmp = mkdtempSync(join(tmpdir(), "aice-merge-"));
+    const db = openDatabase(join(tmp, "app.db")).db;
+    services = mkServices(db);
+    registry = buildBridge();
+  });
+  after(() => rmSync(tmp, { recursive: true, force: true }));
+
+  function fixtureRepo(name, conflict) {
+    const dir = join(tmp, name);
+    mkdirSync(dir, { recursive: true });
+    const git = (args) => execFileSync("git", args, { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    git(["init"]); git(["config", "user.email", "t@t"]); git(["config", "user.name", "t"]);
+    writeFileSync(join(dir, "f.txt"), "base\n");
+    git(["add", "."]); git(["commit", "-m", "base"]);
+    const baseSha = git(["rev-parse", "HEAD"]).trim();
+    git(["checkout", "-b", "task/one"]);
+    writeFileSync(join(dir, "f.txt"), "task side\n");
+    writeFileSync(join(dir, "taskonly.txt"), "from task\n");
+    git(["add", "."]); git(["commit", "-m", "task work"]);
+    git(["checkout", "master"]);
+    writeFileSync(join(dir, "f.txt"), conflict ? "master rivalling line\n" : "base\n");
+    if (!conflict) writeFileSync(join(dir, "masteronly.txt"), "m\n");
+    git(["add", "."]); git(["commit", "-m", "master work"]);
+    return { dir, baseSha };
+  }
+
+  it("clean preview: mergeable=true, no conflicts", async () => {
+    const { dir, baseSha } = fixtureRepo("cleanrepo", false);
+    const p = services.projects.create({ name: "mp-clean", rootPath: dir, classification: "internal" });
+    const t = services.tasks.create({ projectId: p.id, title: "clean", risk: "low", classification: "public" });
+    const wtRel = ".aice/worktrees/mp";
+    mkdirSync(join(dir, wtRel), { recursive: true });
+    execFileSync("git", ["worktree", "add", wtRel, "task/one"], { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    services.workspaces.create({ projectId: p.id, taskId: t.id, path: join(dir, wtRel), branch: "task/one", baseSha });
+    const r = await registry.dispatch(services, { command: "tasks.mergepreview", args: { taskId: t.id } });
+    assert.equal(r.ok, true);
+    assert.equal(r.data.mergeable, true);
+    assert.deepEqual(r.data.conflicts, []);
+    assert.equal(r.data.targetRef, "master");
+  });
+
+  it("conflicting preview: mergeable=false with the exact conflicted file list", async () => {
+    const { dir, baseSha } = fixtureRepo("conflictrepo", true);
+    const p = services.projects.create({ name: "mp-conf", rootPath: dir, classification: "internal" });
+    const t = services.tasks.create({ projectId: p.id, title: "conf", risk: "low", classification: "public" });
+    const wtRel = ".aice/worktrees/mp2";
+    mkdirSync(join(dir, wtRel), { recursive: true });
+    execFileSync("git", ["worktree", "add", wtRel, "task/one"], { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    services.workspaces.create({ projectId: p.id, taskId: t.id, path: join(dir, wtRel), branch: "task/one", baseSha });
+    const r = await registry.dispatch(services, { command: "tasks.mergepreview", args: { taskId: t.id } });
+    assert.equal(r.ok, true);
+    assert.equal(r.data.mergeable, false);
+    assert.deepEqual(r.data.conflicts, ["f.txt"]);
+  });
+
+  it("runAllowExit kernel: unacceptable non-zero still throws EXEC_FAILED (fail-closed)", () => {
+    return (async () => {
+      const { GitRunner } = await import("../../../packages/git/src/runner.ts");
+      const { dir } = fixtureRepo("kernrepo", false);
+      const runner = new GitRunner(dir);
+      const res = runner.runAllowExit(["git", "merge-tree", "--write-tree", "master", "task/one"], [1]);
+      assert.ok(typeof res.status === "number");
+      // unacceptable status (e.g. rev-parse of a bogus ref) still throws
+      assert.throws(() => runner.runAllowExit(["git", "rev-parse", "--verify", "definitely-not-a-ref-AICE"], []), (e) => e.code === "EXEC_FAILED");
+      // argv-boundary invariant: a metachar operand is handed to git as ONE argv
+      // element — no shell ever interprets it. Proof: status 1 (git rejects the
+      // operand) and stdout has NO "wc would have succeeded" number.
+      const pipeRes = runner.runAllowExit(["git", "rev-list | wc -l"], [1]);
+      assert.equal(pipeRes.status, 1);
+      assert.ok(!/^\s*\d+\s*$/.test(pipeRes.stdout));
+    })();
   });
 });

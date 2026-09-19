@@ -146,3 +146,19 @@ npm run tools:sbom      # writes dist/sbom.cyclonedx.json (deterministic, no run
 - Provider adapters each have socket-level contract tests (`tests/integration/provider-conformance.test.mjs`) — run them against a candidate adapter build before enabling it.
 - The desktop task view now includes a **diff panel** (base → working tree) when a task workspace exists; it's display-only and redacted at the bridge.
 - Untrusted content is additionally canonicalized before injection scanning (NFKC + bidi/zero-width strip + confusables fold); obfuscated payloads surface a `unicode-obfuscation` finding with raised severity.
+
+
+## Signed releases & merge preview (Phase 11)
+
+```bash
+node scripts/release-sign.mjs --key <publisher.pem>     # sign SHA256SUMS.txt (ed25519)
+node scripts/release-verify-sign.mjs --require-signature # verify against pinned pubkey
+node scripts/release-check.mjs                           # full readiness matrix (10 rows)
+```
+
+- The pinned publisher public key lives at `docs/release/publisher-key.pem`; private
+  keys never enter the repo (dev lane: `--genkey` writes the pair and re-pins).
+- The desktop task view shows a **merge preview** (clean/conflicts with the exact
+  file list) computed synthetically — nothing in any worktree is touched.
+- a11y is now statically enforced to 13 rules incl. computed WCAG AA contrast and
+  reduced-motion pairing; run `node scripts/a11y-check.mjs` before shipping UI edits.
