@@ -14,7 +14,10 @@ const dirIdx = process.argv.indexOf("--dir");
 const distDir = dirIdx >= 0 && process.argv[dirIdx + 1] !== undefined ? resolve(root, process.argv[dirIdx + 1]) : join(root, "dist");
 const sumsPath = join(distDir, "SHA256SUMS.txt");
 const sigPath = join(distDir, "SHA256SUMS.sig");
-const pubPinPath = join(root, "docs/release/publisher-key.pem");
+const pinIdx = process.argv.indexOf("--pin");
+const pubPinPath = pinIdx >= 0 && process.argv[pinIdx + 1] !== undefined
+  ? resolve(root, process.argv[pinIdx + 1])
+  : join(root, "docs/release/publisher-key.pem");
 const strict = process.argv.includes("--require-signature");
 
 

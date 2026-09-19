@@ -23,40 +23,43 @@ test("release-sign: full round trip + tamper refusal (fail-closed)", () => {
     // synthetic release dir
     writeFileSync(join(work, "SHA256SUMS.txt"), `${"ab".repeat(32)}  app.tar.gz\n`);
     const priv = join(work, "publisher.key.pem");
-    assert.equal(run(SIGN, ["--genkey", priv]).status, 0);
-    // pinned pubkey is repo-side, rewritten by --genkey → capture now
-    const pubPin1 = readFileSync(join(root, "docs/release/publisher-key.pem"), "utf8");
+    const pub1 = join(work, "pub1.pem");
+    assert.equal(run(SIGN, ["--genkey", priv, "--pin", pub1]).status, 0);
+    // REPO PIN MUST NEVER CHANGE during fixtures — fixture purity guard
+    const repoPinBefore = readFileSync(join(root, "docs/release/publisher-key.pem"), "utf8");
+    const pubPin1 = readFileSync(pub1, "utf8");
     assert.ok(pubPin1.includes("PUBLIC KEY"));
     // sign
     const s = run(SIGN, ["--key", priv, "--dir", work]);
     assert.equal(s.status, 0, s.stderr);
-    assert.equal(run(VERIFY, ["--dir", work, "--require-signature"]).status, 0);
+    // the verify lane uses an explicit --pin to keep fixtures repo-pure
+    assert.equal(run(VERIFY, ["--dir", work, "--require-signature", "--pin", pub1]).status, 0);
+    // isolation the other way: fixture-signed payload must NOT verify against the repo pin
+    const againstRepo = run(VERIFY, ["--dir", work, "--require-signature"]);
+    assert.ok(againstRepo.status === 1 || readFileSync(join(root, "docs/release/publisher-key.pem"), "utf8") === pubPin1,
+      againstRepo.stderr);
     // tamper the payload → verify must FAIL
     writeFileSync(join(work, "SHA256SUMS.txt"), `${"cd".repeat(32)}  app.tar.gz\n`);
-    const bad = run(VERIFY, ["--dir", work, "--require-signature"]);
+    const bad = run(VERIFY, ["--dir", work, "--require-signature", "--pin", pub1]);
     assert.equal(bad.status, 1);
     assert.match(bad.stderr, /SIGNATURE MISMATCH/);
-    // restore + wrong key → FAIL
+    // restore + wrong key → FAIL (all pins in tmp, never the repo)
     writeFileSync(join(work, "SHA256SUMS.txt"), `${"ab".repeat(32)}  app.tar.gz\n`);
     const other = mkdtempSync(join(tmpdir(), "aice-sign2-"));
     try {
       const priv2 = join(other, "publisher.key.pem");
-      assert.equal(run(SIGN, ["--genkey", priv2]).status, 0);
+      const pub2 = join(other, "pub2.pem");
+      assert.equal(run(SIGN, ["--genkey", priv2, "--pin", pub2]).status, 0);
       const s2 = run(SIGN, ["--key", priv2, "--dir", work]);
       assert.equal(s2.status, 0);
-      // re-pin the FALSE publisher pubkey came from second genkey → verify now fails
-      assert.equal(run(VERIFY, ["--dir", work, "--require-signature"]).status, 0);
-      const mismatch = spawnSync(process.execPath, [VERIFY, "--dir", work, "--require-signature"], { cwd: root, encoding: "utf8" });
-      assert.equal(mismatch.status, 0);
-      // now check against ORIGINAL pubkey by restoring pub pin
-      writeFileSync(join(root, "docs/release/publisher-key.pem"), pubPin1);
-      const wrongKey = run(VERIFY, ["--dir", work, "--require-signature"]);
+      const ownPin = run(VERIFY, ["--dir", work, "--require-signature", "--pin", pub2]);
+      assert.equal(ownPin.status, 0);
+      const wrongKey = run(VERIFY, ["--dir", work, "--require-signature", "--pin", pub1]);
       assert.equal(wrongKey.status, 1);
-    } finally {
-      rmSync(other, { recursive: true, force: true });
-      // restore the pinned publisher pubkey to the canonical test pair
-      writeFileSync(join(root, "docs/release/publisher-key.pem"), pubPin1);
-    }
+      assert.match(wrongKey.stderr, /SIGNATURE MISMATCH/);
+    } finally { rmSync(other, { recursive: true, force: true }); }
+    // repo pin untouched by fixtures
+    assert.equal(readFileSync(join(root, "docs/release/publisher-key.pem"), "utf8"), repoPinBefore);
   } finally { rmSync(work, { recursive: true, force: true }); }
 });
 
@@ -76,7 +79,7 @@ test("release-sign: absent sums file → explicit fail-closed message", () => {
   const work = mkdtempSync(join(tmpdir(), "aice-sign4-"));
   try {
     const priv = join(work, "k.pem");
-    assert.equal(run(SIGN, ["--genkey", priv]).status, 0);
+    assert.equal(run(SIGN, ["--genkey", priv, "--pin", join(work, "k.pub.pem")]).status, 0);
     const r = run(SIGN, ["--key", priv, "--dir", work]);
     assert.equal(r.status, 1);
     assert.match(r.stderr, /absent/);

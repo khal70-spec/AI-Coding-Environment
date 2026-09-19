@@ -37,8 +37,9 @@ if (arg.genkey === true || typeof arg.genkey === "string") {
   const target = resolve(root, typeof arg.genkey === "string" ? arg.genkey : "/dev/null");
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
   writeFileSync(target, privateKey.export({ type: "pkcs8", format: "pem" }));
-  writeFileSync(pubPinPath, publicKey.export({ type: "spki", format: "pem" }));
-  console.error(`release-sign: NEW publisher key → private ${target} (GUARD IT, never commit) + public pinned ${join("docs", "release", "publisher-key.pem")}`);
+  const pinTarget = typeof arg.pin === "string" ? resolve(root, arg.pin) : pubPinPath;
+  writeFileSync(pinTarget, publicKey.export({ type: "spki", format: "pem" }));
+  console.error(`release-sign: NEW publisher key → private ${target} (GUARD IT, never commit) + public pinned ${pinTarget}`);
   process.exit(0);
 }
 
