@@ -21,7 +21,8 @@
     "desktop": "node apps/desktop/src/server.ts",
     "security:gate": "node scripts/security-gate.mjs",
     "security:sast": "node scripts/security-sast.mjs",
-    "supply-chain": "node scripts/supply-chain-check.mjs"
+    "supply-chain": "node scripts/supply-chain-check.mjs",
+    "tools:sbom": "node scripts/sbom-generate.mjs"
   },
   "engines": {
     "node": ">=22.18.0"

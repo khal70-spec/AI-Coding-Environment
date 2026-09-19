@@ -143,3 +143,13 @@ implementer, tester, security reviewer, code reviewer, docs/release agents. Test
   (`tests/integration/release-workflow.test.mjs` 4/4)
 - Gates: 580/580 tests, lint 0, tsc 0, security-gate GREEN →
   `docs/development/phase-9-gate-review.md`
+
+
+## Phase 10 — production-depth increment (post-Phase-9) — DONE (offline lanes)
+
+- [x] Unicode canonicalization + confusables detector lane (red-team v2 corpus 8/8)
+- [x] Provider conformance harness — real socket mocks per protocol (10/10)
+- [x] CycloneDX 1.5 deterministic SBOM lane (`tools:sbom`, 4/4, 0 runtime-lane)
+- [x] Diff-viewer bridge lane `tasks.diff` + SPA surface (13/13 ui suites; a11y GREEN)
+- [x] Native-shell lanes probed + evidence recorded (rustc/webkit/rustup absent; R1 policy makes the React port a packaged-product decision)
+- Gates: 605/605, lint 0, tsc 0, security-gate GREEN → `docs/development/phase-10-gate-review.md`

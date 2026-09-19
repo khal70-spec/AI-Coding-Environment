@@ -135,3 +135,14 @@ node scripts/release-check.mjs               # 10-row readiness matrix (sign-off
 
 Crash recovery: WAL-replay is automatic; nothing to run after a kill other than opening
 the app/`aice doctor`. Runbooks under `docs/runbooks/`, sign-off under `docs/release/`.
+
+
+## Conformance, SBOM & diff lanes (Phase 10)
+
+```bash
+npm run tools:sbom      # writes dist/sbom.cyclonedx.json (deterministic, no runtime-lane deps)
+```
+
+- Provider adapters each have socket-level contract tests (`tests/integration/provider-conformance.test.mjs`) — run them against a candidate adapter build before enabling it.
+- The desktop task view now includes a **diff panel** (base → working tree) when a task workspace exists; it's display-only and redacted at the bridge.
+- Untrusted content is additionally canonicalized before injection scanning (NFKC + bidi/zero-width strip + confusables fold); obfuscated payloads surface a `unicode-obfuscation` finding with raised severity.

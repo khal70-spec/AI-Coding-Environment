@@ -2,7 +2,7 @@
 // service scoping proof (T20 cross-project access structurally refused).
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -21,6 +21,7 @@ import {
 import { TaskEngine } from "../../../packages/orchestrator/src/index.ts";
 import { BridgeRegistry, bridgeFingerprint, BRIDGE_VERSION } from "../../../packages/ui/src/bridge.ts";
 import { buildBridge } from "../../../packages/ui/src/commands.ts";
+import { execFileSync } from "node:child_process";
 
 function mkServices(db) {
   const s = {
@@ -140,6 +141,7 @@ describe("buildBridge commands (live services)", () => {
       "tasks.advance",
       "tasks.bundle",
       "tasks.create",
+      "tasks.diff",
       "tasks.fail",
       "tasks.list",
       "tasks.show",
@@ -209,5 +211,64 @@ describe("buildBridge commands (live services)", () => {
     assert.equal(bad.ok, false);
     assert.equal(bad.code, "NOT_FOUND");
     void before;
+  });
+});
+
+describe("tasks.diff lane (Phase 10 diff viewer)", () => {
+  let tmp;
+  let services;
+  let registry;
+  before(() => {
+    tmp = mkdtempSync(join(tmpdir(), "aice-diff-"));
+    const db = openDatabase(join(tmp, "app.db")).db;
+    services = mkServices(db);
+    registry = buildBridge();
+  });
+  after(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it("no workspace yet → null lane, no crash", async () => {
+    const p = services.projects.create({ name: "d1", rootPath: tmp, classification: "internal" });
+    const t = services.tasks.create({ projectId: p.id, title: "no-ws", risk: "low", classification: "public" });
+    const r = await registry.dispatch(services, { command: "tasks.diff", args: { taskId: t.id } });
+    assert.equal(r.ok, true);
+    assert.equal(r.data.workspace, null);
+    assert.equal(r.data.stat, "");
+  });
+
+  it("worktree with edits → stat + patch vs base SHA (base→working tree)", async () => {
+    // fabricate a minimal repo + workspace row (same geometry WorkspaceService would make)
+    const projDir = join(tmp, "repo");
+    mkdirSync(projDir, { recursive: true });
+    const git = (args) => execFileSync("git", args, { cwd: projDir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    git(["init"]); git(["config", "user.email", "t@t"]); git(["config", "user.name", "t"]);
+    writeFileSync(join(projDir, "hello.ts"), "export const v = 1;\n");
+    git(["add", "."]); git(["commit", "-m", "c1"]);
+    const baseSha = git(["rev-parse", "HEAD"]).trim();
+    const wtRel = ".aice/worktrees/tt";
+    mkdirSync(join(projDir, wtRel), { recursive: true });
+    git(["worktree", "add", wtRel, baseSha]);
+    // agent's edit arrives in the worktree
+    writeFileSync(join(projDir, wtRel, "hello.ts"), "export const v = 2; // changed\n");
+
+    const p = services.projects.create({ name: "d2", rootPath: projDir, classification: "internal" });
+    const t = services.tasks.create({ projectId: p.id, title: "ws", risk: "low", classification: "public" });
+    const ws = services.workspaces.create({ projectId: p.id, taskId: t.id, path: join(projDir, wtRel), branch: "task/tt", baseSha });
+
+    const r = await registry.dispatch(services, { command: "tasks.diff", args: { taskId: t.id } });
+    assert.equal(r.ok, true);
+    assert.match(r.data.stat, /hello\.ts/);
+    assert.match(r.data.patch, /-export const v = 1;/);
+    assert.match(r.data.patch, /\+export const v = 2;/);
+    assert.equal(r.data.workspace.id, ws.id);
+  });
+
+  it("project scoping: another project's task never resolves a cross-project workspace", async () => {
+    const pA = services.projects.create({ name: "d3a", rootPath: join(tmp, "a"), classification: "internal" });
+    const pB = services.projects.create({ name: "d3b", rootPath: join(tmp, "b"), classification: "internal" });
+    const tB = services.tasks.create({ projectId: pB.id, title: "b", risk: "low", classification: "public" });
+    services.workspaces.create({ projectId: pA.id, path: "/tmp/x", branch: "x", baseSha: "0".repeat(40) });
+    const r = await registry.dispatch(services, { command: "tasks.diff", args: { taskId: tB.id } });
+    assert.equal(r.ok, true);
+    assert.equal(r.data.workspace, null);
   });
 });

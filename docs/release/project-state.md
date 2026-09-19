@@ -1,6 +1,6 @@
 # Project state — end-to-end production readiness (2026-09-19)
 
-**Headline: 87% to the end-to-end production target.** How that number is derived
+**Headline: ~90% (89.7%) to the end-to-end production target** — recomputed 2026-09-19 after the Phase 10 depth increment (`docs/development/phase-10-gate-review.md`). Original baseline at Phase 9 close-out: 87%. How that number is derived
 below — weighted capability domains against the master plan (`AI_Coding_Environment_End_to_End_Plan.md`),
 not vibes. Each row links its evidence.
 
@@ -52,18 +52,19 @@ for explicit deferrals. No row gets credit without gate evidence.
 | Domain | Weight | Attainment | Basis |
 |---|---|---|---|
 | Foundation (runtime, storage, governance, audit) | 15% | 100% | rows A1–A5 |
-| Providers & secrets | 12% | 85% | A6–A7; discount: live vendor conformance (B3) |
+| Providers & secrets | 12% | **92%** | A6–A7 + socket-level conformance harness per protocol (Phase 10); discount narrows to live-vendor credentialled runs (B3) |
 | Tools & sandbox | 12% | 95% | A8; escrow: fs/terminal/git/scanner all gated |
-| Agents | 12% | 90% | A9; discount: live-model loop conformance with B3 |
+| Agents | 12% | **93%** | A9 + adapter loop proven against conformance harness (Phase 10) |
 | Context & routing | 8% | 95% | A10 |
 | MCP / skills / plugins | 10% | 85% | A11; discount: OAuth remote + marketplace (B4) |
-| Desktop product (packaged) | 13% | 55% | kernel done (A12), POC app (A13); native shell + tray + signing + update pending (B1/B2/B9) |
-| Security hardening | 8% | 90% | A4/A14; discount: detector residuals (B5) + CI-depth (B6) |
-| Production ops & release | 6% | 90% | A15; discount: signed binaries + SBOM (B2/B6) |
+| Desktop product (packaged) | 13% | **62%** | kernel (A12), POC app + a11y + **diff-viewer lane** (Phase 10); native shell + tray + signing + update pending (B1/B2/B9) — shell lanes probe-blocked in sandbox with evidence |
+| Security hardening | 8% | **94%** | A4/A14 + **unicode canonicalization + confusables lane** (Phase 10, monotonic w/ hygiene class); discount narrows to model-backed multilingual (B5) + CI-depth (B6) |
+| Production ops & release | 6% | **93%** | A15 + **CycloneDX 1.5 SBOM lane, deterministic** (Phase 10); discount narrows to signed binaries + SHA-pinned CI (B2/B6) |
 | Documentation & process rails | 4% | 95% | A16; ragged edge: runbook series for exploit playbooks |
 
-**Weighted total = 87%** (0.15×1.00 + 0.12×0.85 + 0.12×0.95 + 0.12×0.90 + 0.08×0.95 +
-0.10×0.85 + 0.13×0.55 + 0.08×0.90 + 0.06×0.90 + 0.04×0.95 = 0.8705).
+**Weighted total = 89.7% ≈ 90%** (0.15×1.00 + 0.12×0.92 + 0.12×0.95 + 0.12×0.93 +
+0.08×0.95 + 0.10×0.85 + 0.13×0.62 + 0.08×0.94 + 0.06×0.93 + 0.04×0.95 = 0.8974).
+Phase-9 baseline was 87%; the Phase-10 increment moved +2.7 points across five domains.
 
 Interpretation: the **governed, offline-first core (73% of the weighted product) is
 effectively production-done** (weighted attainment ≥ 85% in every core domain). The
@@ -81,7 +82,7 @@ rather than unresolved unknowns.
 
 ## D. Bottom line
 
-The repo you hold is a **release-candidate governed environment**: deterministic builds,
+The repo you hold is a **release-candidate governed environment (605 tests, SBOM'd, reproducible)**: deterministic builds,
 blocking security gates, crash-proof storage, golden workflow to MERGED, and a clean
 3,000→263-file disciplined tree. It can be operated end-to-end today in its local-first
 offline form; the 13-point gap is scheduled product work, not engineering risk.

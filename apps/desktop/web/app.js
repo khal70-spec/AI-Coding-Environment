@@ -144,6 +144,20 @@ async function renderTaskDetail(main, taskId) {
     el("button", { class: "act", onclick: async () => { const r = prompt("reason (BLOCKED):") ?? ""; try { await bridge("tasks.fail", { taskId, to: "BLOCKED", reason: r }); } catch (e) { alert(e.message); } await render(); } }, "block"),
   );
   wrap.append(el("h4", {}, "evidence & actions"), actions);
+  // worktree diff lane (read-only; task-scoped, base→working-tree via bridge)
+  try {
+    const d = await bridge("tasks.diff", { taskId });
+    if (d.workspace !== null) {
+      wrap.append(el("h4", {}, `diff (${d.workspace.branch} @ base ${d.workspace.baseSha.slice(0, 8)})`));
+      if (d.stat.trim() === "") {
+        wrap.append(el("p", { class: "muted" }, "no changes vs base SHA"));
+      } else {
+        wrap.append(el("pre", { class: "diff-stat" }, d.stat), el("details", {}, el("summary", { class: "muted" }, "patch"), el("pre", { class: "diff-patch" }, d.patch)));
+      }
+    }
+  } catch (e) {
+    wrap.append(el("p", { class: "muted" }, `diff unavailable: ${e.message}`));
+  }
   // runs timeline
   wrap.append(el("h4", {}, "transitions"));
   const runsT = el("table"); runsT.append(el("tr", {}, el("th", {}, "at"), el("th", {}, "from → to"), el("th", {}, "agent/model"), el("th", {}, "summary")));

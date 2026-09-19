@@ -9,5 +9,5 @@ export { isWithinRoot, resolveWithinRoot, assertContainedSync } from "./paths.ts
 export type { ContainmentError } from "./paths.ts";
 export { checkEgress, checkRedirect, defaultPort } from "./ssrf.ts";
 export type { AllowEntry, EgressVerdict } from "./ssrf.ts";
-export { detectSuspiciousInstructions, maxSeverity } from "./injection.ts";
+export { canonicalizeForDetection, detectSuspiciousInstructions, maxSeverity } from "./injection.ts";
 export type { InjectionFinding } from "./injection.ts";

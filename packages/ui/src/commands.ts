@@ -17,6 +17,7 @@ import type {
 import type { TaskEngine } from "../../orchestrator/src/index.ts";
 import type { RiskLevel, DataClassification, TaskState } from "../../core/src/index.ts";
 import { redact } from "../../security/src/index.ts";
+import { GitRunner } from "../../git/src/runner.ts";
 import { BridgeRegistry, type BridgeCommand } from "./bridge.ts";
 
 export interface UiServices {
@@ -100,6 +101,26 @@ export function buildBridge(): BridgeRegistry<UiServices> {
           runs: s.runs.listByTask(t.id),
           workspaces: s.workspaces.listByProject(t.projectId).filter((w) => w.taskId === t.id),
         };
+      },
+    },
+    {
+      id: "tasks.diff",
+      args: { taskId: ID },
+      run: (s, a) => {
+        const t = s.tasks.get(a["taskId"] as string);
+        const project = s.projects.get(t.projectId);
+        // Project-scoped: workspaces come from the task's own project lane.
+        const ws = s.workspaces.listByProject(t.projectId).filter((w) => w.taskId === t.id).at(-1);
+        if (ws === undefined) {
+          return { task: t, workspace: null, stat: "", patch: "" };
+        }
+        // Runner rooted in the task worktree; `git diff <baseSha>` = base → working
+        // tree in one pass (committed rounds + uncommitted edits), argv-only.
+        const runner = new GitRunner(ws.path.startsWith("/") ? ws.path : `${project.rootPath}/${ws.path}`);
+        const stat = runner.run(["git", "diff", "--stat", ws.baseSha]).stdout;
+        const patch = display(runner.run(["git", "diff", ws.baseSha]).stdout, 30000) ?? "";
+        s.audit.append({ actor: s.actor, action: "ui.task.diff", target: t.id, projectId: t.projectId, taskId: t.id });
+        return { task: t, workspace: ws, stat, patch };
       },
     },
     {

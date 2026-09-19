@@ -35,3 +35,8 @@ hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 code{font-family:ui-monospace,monospace;font-size:12.5px;color:#a5d6ff}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .flash{animation:pulse .35s 1}
+
+
+/* diff lane */
+.diff-stat { background: #0e1626; border: 1px solid #22304a; padding: 8px; overflow-x: auto; white-space: pre; }
+.diff-patch { max-height: 380px; overflow-y: auto; background: #0a1220; border: 1px solid #22304a; padding: 8px; white-space: pre-wrap; word-break: break-all; }
