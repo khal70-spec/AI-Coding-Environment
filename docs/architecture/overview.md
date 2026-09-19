@@ -66,3 +66,31 @@ Frozen spec, ADRs, threat model, policies, backlog, CI gates, and compiling
 skeletons for `core`, `policy`, `secrets`, `storage`, `git`, `providers`,
 `orchestrator`, `agents`, `tools`, `security`, `mcp`, `context` with unit +
 security tests for the pure-logic kernels. No full UI (Plan §50).
+
+
+---
+
+## Current state (Phases 0–9, release candidate)
+
+The Phase-0 baseline above holds. What exists today beyond it:
+
+- **providers**: registry + router + dispatcher with script-replay and
+  local-openai-compatible adapters, budget lanes (`budget set/events`), telemetry and
+  health tracking. Secrets PVC-lanes (`provider key set --stdin`).
+- **tools**: fs/gits/terminal/scanner/test-runner/browser-fetch set behind
+  `ToolContext` (jail, grant, policy ctx); argv-only execution, capped redacted output,
+  inert `$(…)` shape proofs.
+- **agents**: composer pipeline (investigate → plan → implement → review → fix,
+  bounded retries) writing `agent_runs` rows + content-free audit for every round.
+- **context**: repo index + packers + routing (task → context bundle), CLI lanes
+  `context *`, model routing by risk/classification.
+- **mcp**: server registry, gates (deny ladder), contained client (http/stdio), skills
+  digest + tamper-block approvals. OAuth/remote profile: deferred (fail-closed today).
+- **ui (bridge kernel) + desktop app**: `packages/ui` allowlisted bridge commands over
+  DAOs/engine; `apps/desktop` hardened HTTP adapter + vanilla SPA. Tauri shell: deferred
+  to the packaged product (ADR-001 divergence, recorded).
+- **release planes**: deterministic artifacts (`release-prepare`/`release-verify`),
+  readiness matrix (`release-check` R1–R10), operator runbooks, reproducible
+  backup/restore + crash recovery lanes.
+
+See each gate review for the phase-level evidence chains.

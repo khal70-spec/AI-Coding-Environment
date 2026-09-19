@@ -106,3 +106,32 @@ DB_PATH=.local/app.db BRIDGE_ACTOR=alice npm run desktop
 
 Preview hosts (arena/sandbox): set `BRIDGE_ALLOWED_HOSTS="e2b.app"` — foreign hosts get
 `403 HOST_DENIED` structurally. See `docs/development/phase-7-gate-review.md`.
+
+
+## Security gates for your workspace (Phase 8)
+
+Run the blocking lane set anytime:
+
+```bash
+npm run security:gate        # secrets → dep-audit → supply-chain → SAST-lite
+```
+
+- `check:secrets` scans tracked files for probable secrets (fixes: remove, use
+  TESTONLY-marked fixtures, rotate anything real).
+- `supply-chain` enforces zero runtime deps, exact pins, no install hooks, lockfile v3.
+- `sast` forbids by construction: eval/Function, `shell: true`, direct shell spawn,
+  SQL template interpolation, uncontrolled `process.env` reads in packages, renderer
+  XSS sinks, CORS wildcards. Allowlisted suppressions print their reason at scan time —
+  visibility is the point.
+
+## Backups, recovery & releases (Phase 9)
+
+```bash
+node scripts/db-backup.mjs [--out DIR]      # verified online backup (atomic)
+node scripts/db-restore.mjs backups/app-*.db # guarded restore (corruption refused)
+node scripts/migration-check.mjs             # additive-only migration policy
+node scripts/release-check.mjs               # 10-row readiness matrix (sign-off)
+```
+
+Crash recovery: WAL-replay is automatic; nothing to run after a kill other than opening
+the app/`aice doctor`. Runbooks under `docs/runbooks/`, sign-off under `docs/release/`.
