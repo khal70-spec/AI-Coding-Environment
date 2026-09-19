@@ -64,3 +64,6 @@ yarn-error.log*
 
 # Snapshots excluded anyway, but keep clean
 .arena/
+
+# Exception: the RELEASE PUBLISHER PUBLIC key pin — public by definition, must be tracked
+!docs/release/publisher-key.pem
