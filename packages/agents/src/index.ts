@@ -41,10 +41,12 @@ export const KNOWN_TOOLS: readonly string[] = Object.freeze([
   "test.exec",
   "scan.exec",
   "browser.fetch",
-  // Reserved (Phase 5+): orchestration support tools, not yet registered
+  // Live since Phase 5+: context engine + governed memory (packages/tools
+  // createMemoryTools over @ai-coding-env/memory)
   "context.assemble",
   "memory.read",
   "memory.write",
+  // Reserved: not yet registered
   "search.semantic",
   "mcp.call",
 ]);

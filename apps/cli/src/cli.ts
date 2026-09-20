@@ -60,6 +60,13 @@ function help(): string {
     "  budget events [--provider ID] [--limit N]",
     "  budget remove <id>",
     "",
+    "  memory set --scope S --key K --value V [--project P|--task T|--model M] [--ttl-hours N|--expires ISO]",
+    "  memory get|delete --scope S --key K [ids]   memory list --scope S [ids] [--prefix P]",
+    "  memory purge --scope S [ids]                Wipe one exact partition (audited)",
+    "  memory export --scope S [ids] --file PATH   Redacted JSON export (jailed to cwd)",
+    "  memory sweep                                Retention pass (TTL + age + budget)",
+    "  memory retention [--scope S --days D --max N]",
+    "",
     "Denials exit 1 and are written to the audit trail.",
   ].join("\n");
 }
@@ -201,7 +208,10 @@ import { GIT_TOOLS } from "../../../packages/tools/src/git-tools.ts";
 import { TEST_RUNNER_TOOLS } from "../../../packages/tools/src/test-runner-tool.ts";
 import { BUILTIN_MANIFESTS } from "../../../packages/agents/src/index.ts";
 import { buildRepoIndex, persistRepoIndex, packWorkspace } from "../../../packages/context/src/index.ts";
-import { McpServersDao, PermissionsDao, SkillsDao } from "../../../packages/storage/src/index.ts";
+import { McpServersDao, PermissionsDao, SkillsDao, MemoryEntriesDao, MemoryRetentionDao } from "../../../packages/storage/src/index.ts";
+import { MemoryService, MemoryError } from "../../../packages/memory/src/index.ts";
+import type { MemoryRef } from "../../../packages/memory/src/index.ts";
+import { MEMORY_SCOPES } from "../../../packages/storage/src/index.ts";
 import { validateMcpConfig, decideMcpCall, McpClient, parseSkillManifest, digestSkillBundle, decideSkillUse } from "../../../packages/mcp/src/index.ts";
 import { classifyTask, routeTask } from "../../../packages/context/src/routing.ts";
 import { investigate } from "../../../packages/agents/src/investigator.ts";
@@ -241,6 +251,7 @@ interface Services {
   mcpServers: McpServersDao;
   permissions: PermissionsDao;
   skills: SkillsDao;
+  memory: MemoryService;
 }
 function openServices(dbPath: string): Services {
   const opened = openDatabase(dbPath);
@@ -265,6 +276,11 @@ function openServices(dbPath: string): Services {
     mcpServers: new McpServersDao(opened.db),
     permissions: new PermissionsDao(opened.db),
     skills: new SkillsDao(opened.db),
+    memory: new MemoryService({
+      entries: new MemoryEntriesDao(opened.db),
+      retention: new MemoryRetentionDao(opened.db),
+      audit: new AuditDao(opened.db),
+    }),
   };
 }
 
@@ -1289,6 +1305,99 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
         return throwUsage("mcp add|list|remove|enable|disable|invoke");
       }
 
+      case "memory": {
+        // Plan §25 lanes: scope-isolated store; mutations audited content-free.
+        const flags = global.flags;
+        const sub = pos[0];
+        const ref = (): MemoryRef => ({
+          scope: enumFlag(flags, "scope", MEMORY_SCOPES) as MemoryRef["scope"],
+          projectId: flagString(flags, "project") ?? "",
+          taskId: flagString(flags, "task") ?? "",
+          modelId: flagString(flags, "model") ?? "",
+        });
+        try {
+          if (sub === "set") {
+            const r = ref();
+            const key = needFlag(flags, "key");
+            const value = needFlag(flags, "value");
+            const ttl = flagString(flags, "ttl-hours");
+            const expires = flagString(flags, "expires");
+            const row = s.memory.set({
+              ...r,
+              key,
+              value,
+              actor,
+              ...(ttl !== undefined ? { ttlHours: Number(ttl) } : {}),
+              ...(expires !== undefined ? { expiresAt: expires } : {}),
+            });
+            out.print(
+              { id: row.id, scope: row.scope, key: row.key, bytes: row.valueJson.length, expiresAt: row.expiresAt },
+              `memory ${row.scope} ${row.key} saved (${row.valueJson.length} bytes${row.expiresAt !== null ? `, expires ${row.expiresAt}` : ""})`,
+            );
+            return 0;
+          }
+          if (sub === "get") {
+            const row = s.memory.get(ref(), needFlag(flags, "key"));
+            if (row === undefined) throw new CliError("NOT_FOUND", "memory entry not found");
+            out.print(
+              row,
+              `memory ${row.scope} ${row.key} (updated ${row.updatedAt}${row.expiresAt !== null ? `, expires ${row.expiresAt}` : ""})\n${redact(row.valueJson).text}`,
+            );
+            return 0;
+          }
+          if (sub === "list") {
+            const prefix = flagString(flags, "prefix");
+            const rows = s.memory.list(ref(), { ...(prefix !== undefined ? { prefix } : {}) });
+            out.print(
+              rows,
+              rows.map((r) => `${r.scope}\t${r.key}\t${r.valueJson.length}B\t${r.expiresAt ?? "-"}`).join("\n"),
+            );
+            return 0;
+          }
+          if (sub === "delete") {
+            const removed = s.memory.delete(ref(), needFlag(flags, "key"), actor);
+            out.print({ removed }, removed ? "memory entry deleted" : "memory entry not found (no-op)");
+            return removed ? 0 : 1;
+          }
+          if (sub === "purge") {
+            const r = ref();
+            const removed = s.memory.purge(r, actor);
+            out.print({ scope: r.scope, removed }, `memory purge ${r.scope}: removed ${removed} entr${removed === 1 ? "y" : "ies"}`);
+            return 0;
+          }
+          if (sub === "export") {
+            const file = needFlag(flags, "file");
+            const res = s.memory.exportPartition(ref(), file, process.cwd(), actor);
+            out.print(res, `memory export → ${res.file} (${res.count} entries, ${res.bytes} bytes, redacted)`);
+            return 0;
+          }
+          if (sub === "sweep") {
+            const totals = s.memory.sweep(actor);
+            const text = Object.keys(totals).length === 0
+              ? "memory sweep: nothing to remove"
+              : `memory sweep: removed ${Object.entries(totals).map(([k, n]) => `${n} (${k})`).join(", ")}`;
+            out.print(totals, text);
+            return 0;
+          }
+          if (sub === "retention") {
+            const scope = flagString(flags, "scope");
+            if (scope === undefined) {
+              const rows = MEMORY_SCOPES.map((sc) => s.memory.retentionFor(sc));
+              out.print(rows, rows.map((r) => `${r.scope}\t${r.retentionDays === 0 ? "forever" : `${r.retentionDays}d`}\tmax ${r.maxEntries}`).join("\n"));
+              return 0;
+            }
+            const days = needFlag(flags, "days");
+            const max = needFlag(flags, "max");
+            s.memory.retentionSet(scope as MemoryRef["scope"], Number(days), Number(max), actor);
+            out.print({ scope, days: Number(days), max: Number(max) }, `memory retention ${scope}: ${Number(days) === 0 ? "forever" : `${days}d`}, max ${max}`);
+            return 0;
+          }
+          return throwUsage("memory set|get|list|delete|purge|export|sweep|retention");
+        } catch (err) {
+          if (err instanceof MemoryError) throw new CliError(err.code === "SECRET_REFUSED" ? "SECRET_REFUSED" : `MEMORY_${err.code}`, err.message);
+          throw err;
+        }
+      }
       case "skill": {
         const sub = pos[0];
         if (sub === "add") {

@@ -80,3 +80,4 @@ export { SCANNER_IDS, SCANNER_TOOLS, countBySeverity, parseScannerOutput, scanEx
 export type { NormalizedFinding, ScannerId } from "./scanner-tools.ts";
 export { BROWSER_TOOLS, browserFetch, checkEgressSafeHost, htmlToText, isPrivateOrMetadataHost } from "./browser-tool.ts";
 export type { UrlGateVerdict } from "./browser-tool.ts";
+export { createMemoryTools } from "./memory-tools.ts";

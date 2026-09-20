@@ -224,3 +224,26 @@ CREATE TABLE IF NOT EXISTS skills (
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_skills_status ON skills(status);
+
+CREATE TABLE IF NOT EXISTS memory_entries (
+  id          TEXT PRIMARY KEY,
+  scope       TEXT NOT NULL CHECK (scope IN ('global','project','task','model','scratchpad')),
+  project_id  TEXT NOT NULL DEFAULT '',
+  task_id     TEXT NOT NULL DEFAULT '',
+  model_id    TEXT NOT NULL DEFAULT '',
+  key         TEXT NOT NULL,
+  value_json  TEXT NOT NULL,
+  created_by  TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  expires_at  TEXT,
+  UNIQUE (scope, project_id, task_id, model_id, key)
+);
+CREATE INDEX IF NOT EXISTS idx_memory_scope ON memory_entries(scope, project_id, task_id);
+CREATE INDEX IF NOT EXISTS idx_memory_expiry ON memory_entries(expires_at);
+
+CREATE TABLE IF NOT EXISTS memory_retention (
+  scope          TEXT PRIMARY KEY CHECK (scope IN ('global','project','task','model','scratchpad')),
+  retention_days INTEGER NOT NULL CHECK (retention_days >= 0),
+  max_entries    INTEGER NOT NULL CHECK (max_entries > 0)
+);
