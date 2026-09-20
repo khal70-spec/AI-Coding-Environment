@@ -22,6 +22,9 @@ export interface JsonRpcResponse {
 export interface McpClientDeps {
   readonly fetchImpl?: typeof fetch;
   readonly timeoutMs?: number;
+  /** OAuth 2.1 remote profile: a vault-RESOLVED bearer token for this one call.
+   *  Callers resolve it per call (no caching here); configs never carry tokens. */
+  readonly bearerToken?: string;
 }
 
 interface JsonRpcReply {
@@ -46,7 +49,12 @@ async function httpRpc(url: string, body: string, opts: McpClientDeps): Promise<
       method: "POST",
       redirect: "error",
       signal: ac.signal,
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(opts.bearerToken !== undefined && opts.bearerToken !== ""
+          ? { authorization: `Bearer ${opts.bearerToken}` }
+          : {}),
+      },
       body,
     });
     const raw = await res.arrayBuffer();
