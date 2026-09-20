@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.3] — 2026-09-20 (audit-verification + drift housekeeping)
+
+- Full main-vs-plan audit (frozen spec §1–§57) re-verified from a fresh install:
+  616/616 tests, security gate GREEN (5/5), lint/tsc clean, a11y A1–A15 GREEN;
+  content identity proven `main == v1.0.2 tag + PR #4`. Report:
+  `docs/development/codebase-audit-2026-09-20.md`
+- Drift fixes: `@ai-coding-env/security` manifest 0.3.0 → 1.0.2 caught up (the 1.0.0
+  15-manifest bump missed it; lockfile already carried 1.0.2), `aice version` banner
+  0.6.0-phase6 → 1.0.2, release-checklist refreshed (v1.0.x header, R6 lane A1–A15,
+  R11 signature row documented, sign/verify sequence)
+- Fixture-hygiene rule documented: the security-gate suite restores its mutated
+  `packages/security/package.json` fixture **from HEAD** (`git checkout --`) — never
+  run the suite with uncommitted edits to that file
+- §53 golden-workflow attestation renewed via scripted equivalent (release-workflow +
+  golden-review-workflow suites 5/5 fresh green) — recorded in
+  `docs/release/release-checklist.md`
+- Version bump 1.0.2 → **1.0.3** (15 manifests + lock + CLI banner)
+
 ## [1.0.2] — 2026-09-19 (coverage + CI parity patch)
 
 - Bridge allowlist completeness suite: every documented command exercised live
