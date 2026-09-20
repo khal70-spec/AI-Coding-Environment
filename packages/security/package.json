@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/security",
-  "version": "0.3.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Security classifiers: secrets, commands, paths, SSRF, prompt injection",
