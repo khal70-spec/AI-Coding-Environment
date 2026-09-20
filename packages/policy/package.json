@@ -1,6 +1,6 @@
 {
   "name": "@ai-coding-env/policy",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "type": "module",
   "description": "Policy engine kernel: allow / approval / deny evaluation",
