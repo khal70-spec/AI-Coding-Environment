@@ -24,7 +24,7 @@ agent composer (script-replay + local-openai adapters), context engine
 `aice` operator CLI. Security posture is machine-enforced:
 `npm run security:gate` (secrets/dep-audit/supply-chain/SAST) + crash-recovery,
 backup/restore, deterministic release artifacts, the §53 golden-workflow suite, socket-level provider conformance,
-and a11y rules A1–A13 (computed WCAG AA contrast).
+and a11y rules A1–A15 (computed WCAG AA contrast).
 
 See [`docs/backlog/`](./docs/backlog/) for the phase ledger and
 [`docs/adr/`](./docs/adr/) for decisions.
