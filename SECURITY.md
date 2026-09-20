@@ -46,8 +46,11 @@ SLSA/SBOM practices where applicable (Plan §45).
 - Security-sensitive PRs need an ADR or threat-model touch-up plus `tests/security/` coverage.
 - CI security gates must pass before merge: tests (unit/security/integration),
   strict typecheck, offline secret scan, `npm audit` (high+), migration idempotency.
-  The workflow is authored at `scripts/ci/ci.yml` (pending installation to
-  `.github/workflows/` — see `scripts/ci/README.md`; run the local equivalent until it lands).
+  The workflow is authored at `scripts/ci/ci.yml` — **upgraded 2026-09-20** with
+  SHA-pinned actions and blocking OSV-Scanner/Semgrep/Trivy lanes; installation to
+  `.github/workflows/` requires a maintainer token with the `workflows` permission
+  (two recorded attempts, see `scripts/ci/README.md`). Run the documented local
+  equivalent until a maintainer installs it.
   Lint becomes blocking in Phase 3 (ESLint config wave);
   SAST/OSV/SBOM gates become blocking in Phase 8 (see `docs/security/dependency-policy.md`).
 

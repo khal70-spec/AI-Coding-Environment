@@ -73,8 +73,8 @@ ai-coding-environment/
 │   ├── integration/        # SQLite migrations now; provider/Git/fs/MCP/terminal (Phase 1+)
 │   ├── security/           # Traversal, injection, leakage, SSRF, bypass, MCP
 │   └── e2e/                # task → … → rollback (Phase 4+)
-├── scripts/                # check-secrets, db-migrate, ci/ (workflow pending install)
-└── .github/workflows/      # CI with mandatory security gates (template ready in scripts/ci/)
+├── scripts/                # check-secrets, db-migrate, ci/ (upgraded CI workflow, install-ready)
+└── .github/workflows/      # CI with mandatory security gates (install-ready at scripts/ci/ — maintainer-token step)
 ```
 
 ## Task lifecycle

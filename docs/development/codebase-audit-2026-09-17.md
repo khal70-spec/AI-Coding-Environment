@@ -45,7 +45,10 @@ unit tests, 3 migration integration tests).
 - [ ] P0.6 phase-gate review: threat-model re-read, DoD spot check, tag
   `phase-0-complete` (this audit is the evidence base for that review).
 - [ ] Install the authored CI workflow `scripts/ci/ci.yml` → `.github/workflows/ci.yml`
-  (blocked on the automation token's `workflows` permission; see `scripts/ci/README.md`).
+  — re-attempted 2026-09-20, **still blocked on the App token's `workflows`
+  permission** (second recorded attempt). The workflow is now **install-ready and
+  upgraded** (SHA-pinned actions + blocking OSV-Scanner/Semgrep/Trivy lanes) — a
+  maintainer runs the one-step install in `scripts/ci/README.md`.
 - [ ] `lint`/`typecheck` are honest no-ops until Phase 1 (eslint config + typescript
   dev-dep land with the first compiled packages — flagged by the scripts themselves).
 
@@ -105,7 +108,7 @@ unit tests, 3 migration integration tests).
 | # | Gap | Severity | Fix |
 |---|---|---|---|
 | 1 | All 14 workspace `test` scripts pointed outside the repo (`../../../tests/…` from `packages/<x>`) — ran **0 tests, exit 0** (silent hole; `test:workspaces` proved nothing) | **high** | Paths corrected to `../../tests/…`; 13 packages now run real tests (verified non-zero pass counts) |
-| 2 | `.github/workflows/ci.yml` claimed by README layout, SECURITY.md, architecture docs, and backlog P0.1 (`[x]`) — **file did not exist** | **high** | Workflow authored: tests (root + workspaces), secret scan, `npm audit`, lint/typecheck soft gates, CLI doctor, migration idempotency; least-privilege permissions; Node 22+24 matrix. GitHub rejected pushing it to `.github/workflows/` (App token lacks the `workflows` permission), so it is parked at `scripts/ci/ci.yml` with a one-step install (`scripts/ci/README.md`); all docs state the parked status — no false claims remain |
+| 2 | `.github/workflows/ci.yml` claimed by README layout, SECURITY.md, architecture docs, and backlog P0.1 (`[x]`) — **file did not exist** | **high** | Workflow authored: tests (root + workspaces), secret scan, `npm audit`, lint/typecheck soft gates, CLI doctor, migration idempotency; least-privilege permissions; Node 22+24 matrix. GitHub rejected pushing it to `.github/workflows/` (App token lacks the `workflows` permission), so it is parked at `scripts/ci/ci.yml` with a one-step install (`scripts/ci/README.md`); all docs state the parked status — no false claims remain. **UPDATE 2026-09-20: install re-attempted and refused again (same permission); workflow upgraded in place — SHA-pinned actions + blocking OSV-Scanner/Semgrep/Trivy lanes — still install-ready for a maintainer** |
 | 3 | `db-migrate.mjs` crashed with a raw stack trace when the `sqlite3` CLI was absent (not a declared prerequisite); not idempotent (`INSERT` on the version PK fails on re-run); stale "Phase 1 will add 001_initial.sql" message | **high** | Rewritten on `node:sqlite` (engines-matched, zero-dep): applied-version skip, per-migration transaction, PRAGMA-outside-transaction handling, `INSERT OR IGNORE` in `001_initial.sql` (also idempotent via the sqlite3 CLI), actionable errors |
 | 4 | `packages/storage/schema.sql` duplicated `migrations/001_initial.sql` (166 lines) with **no drift protection** | medium | Declared migrations the source of truth + `schema.sql` the reviewed mirror; drift-guard unit test asserts byte-exact mirror invariant; documented in `packages/storage/README.md` |
 | 5 | `engines: ">=20"` (+ two docs) contradicted reality: tests/CLI execute `.ts` via type-stripping → Node ≥ 22.18 required (getting-started even said "≥ 22" in its own body) | medium | `engines` → `>=22.18.0`; README, getting-started, tech-stack aligned; CLI doctor enforces the true floor |
@@ -124,13 +127,13 @@ unit tests, 3 migration integration tests).
   their glob actually matches (CI keeps root `npm test` as the authoritative count).
 - **`node:sqlite` emits an ExperimentalWarning on Node 22.** Harmless here (dev-tool
   script); the Phase 1 driver decision (ADR-008) will settle the production driver.
-- **GitHub Actions unpinned (`@v4`)**: Phase 8 supply-chain hardening pins SHAs
-  (recorded in the workflow header + dependency-policy).
-- **CI installation pending**: the workflow (`scripts/ci/ci.yml`) could not be pushed to
-  `.github/workflows/` from this environment — GitHub requires the App's `workflows`
-  permission, which the session token lacks. A maintainer reconnects with that
-  permission and runs the one-step install in `scripts/ci/README.md`; the backlog
-  checkbox flips then. Until it lands, the documented local gate sequence is the
-  authoritative check.
+- ~~**GitHub Actions unpinned (`@v4`)**~~ **RESOLVED 2026-09-20**: the (parked)
+  workflow now pins every action to a full-length commit SHA.
+- **CI installation still pending (2026-09-20, second attempt)**: pushing
+  `.github/workflows/ci.yml` remains refused for the automation App (no `workflows`
+  permission). The workflow at `scripts/ci/ci.yml` is upgraded and install-ready
+  (SHA pins + OSV/Semgrep/Trivy blocking lanes); a maintainer-scoped push or the
+  one-step install lands it. The documented local gate sequence is the authoritative
+  check until then.
 - **Plan §33 auto-approval config** for medium risk is intentionally absent in Phase 0
   (guard treats medium like high until configured) — Phase 1 workspace policy.

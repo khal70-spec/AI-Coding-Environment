@@ -60,6 +60,13 @@ function help(): string {
     "  budget events [--provider ID] [--limit N]",
     "  budget remove <id>",
     "",
+    "  memory set --scope S --key K --value V [--project P|--task T|--model M] [--ttl-hours N|--expires ISO]",
+    "  memory get|delete --scope S --key K [ids]   memory list --scope S [ids] [--prefix P]",
+    "  memory purge --scope S [ids]                Wipe one exact partition (audited)",
+    "  memory export --scope S [ids] --file PATH   Redacted JSON export (jailed to cwd)",
+    "  memory sweep                                Retention pass (TTL + age + budget)",
+    "  memory retention [--scope S --days D --max N]",
+    "",
     "Denials exit 1 and are written to the audit trail.",
   ].join("\n");
 }
@@ -201,8 +208,22 @@ import { GIT_TOOLS } from "../../../packages/tools/src/git-tools.ts";
 import { TEST_RUNNER_TOOLS } from "../../../packages/tools/src/test-runner-tool.ts";
 import { BUILTIN_MANIFESTS } from "../../../packages/agents/src/index.ts";
 import { buildRepoIndex, persistRepoIndex, packWorkspace } from "../../../packages/context/src/index.ts";
-import { McpServersDao, PermissionsDao, SkillsDao } from "../../../packages/storage/src/index.ts";
+import { McpServersDao, PermissionsDao, SkillsDao, MemoryEntriesDao, MemoryRetentionDao } from "../../../packages/storage/src/index.ts";
+import { MemoryService, MemoryError } from "../../../packages/memory/src/index.ts";
+import type { MemoryRef } from "../../../packages/memory/src/index.ts";
+import { MEMORY_SCOPES } from "../../../packages/storage/src/index.ts";
 import { validateMcpConfig, decideMcpCall, McpClient, parseSkillManifest, digestSkillBundle, decideSkillUse } from "../../../packages/mcp/src/index.ts";
+import {
+  OAuthError,
+  discoverAuthorizationServer,
+  discoverProtectedResource,
+  generatePkcePair,
+  generateState,
+  buildAuthorizeUrl,
+  exchangeAuthorizationCode,
+  refreshAccessToken,
+  oauthRefs,
+} from "../../../packages/mcp/src/index.ts";
 import { classifyTask, routeTask } from "../../../packages/context/src/routing.ts";
 import { investigate } from "../../../packages/agents/src/investigator.ts";
 import { architectPlan } from "../../../packages/agents/src/architect.ts";
@@ -241,6 +262,7 @@ interface Services {
   mcpServers: McpServersDao;
   permissions: PermissionsDao;
   skills: SkillsDao;
+  memory: MemoryService;
 }
 function openServices(dbPath: string): Services {
   const opened = openDatabase(dbPath);
@@ -265,6 +287,11 @@ function openServices(dbPath: string): Services {
     mcpServers: new McpServersDao(opened.db),
     permissions: new PermissionsDao(opened.db),
     skills: new SkillsDao(opened.db),
+    memory: new MemoryService({
+      entries: new MemoryEntriesDao(opened.db),
+      retention: new MemoryRetentionDao(opened.db),
+      audit: new AuditDao(opened.db),
+    }),
   };
 }
 
@@ -1199,6 +1226,10 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           const command = csvFlag(global.flags, "command");
           const url = flagString(global.flags, "url");
           const credentialRef = flagString(global.flags, "credential-ref");
+          const oauthClientId = flagString(global.flags, "oauth-client-id");
+          const oauthIssuer = flagString(global.flags, "oauth-issuer");
+          const oauthScopes = csvFlag(global.flags, "oauth-scopes");
+          const oauthResource = flagString(global.flags, "oauth-resource");
           const mcpId = randomUUID();
           const cfg = {
             id: mcpId,
@@ -1213,6 +1244,16 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
             ...(url !== undefined ? { url } : {}),
             ...(command.length > 0 ? { command } : {}),
             ...(credentialRef !== undefined ? { credentialRef } : {}),
+            ...(oauthClientId !== undefined
+              ? {
+                  oauth: {
+                    clientId: oauthClientId,
+                    ...(oauthIssuer !== undefined ? { issuer: oauthIssuer } : {}),
+                    ...(oauthScopes.length > 0 ? { scopes: oauthScopes } : {}),
+                    ...(oauthResource !== undefined ? { resource: oauthResource } : {}),
+                  },
+                }
+              : {}),
           };
           // install-level validation BEFORE persistence (fail closed)
           const errors = validateMcpConfig(cfg);
@@ -1277,7 +1318,22 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
             out.err(decision.code, `${decision.reason} (mcp ${id}, tool ${tool})`);
             return 1;
           }
-          const res = await new McpClient({}).call(cfg, "tools/call", { name: tool, arguments: args });
+          // OAuth 2.1 remote profile: resolve the vault-held bearer token per call
+          // (never cached, never logged; config carries client metadata only).
+          let oauthDeps = {};
+          if (cfg.oauth !== undefined) {
+            const { vault } = await detectVault();
+            let token: string | undefined;
+            try {
+              token = (await vault.load(secretRef(oauthRefs.accessToken(id)))) as unknown as string;
+            } catch {
+              s.audit.append({ actor, action: "mcp.invoke", target: id, decision: "deny", detail: { tool, code: "OAUTH_TOKEN_MISSING" } });
+              out.err("OAUTH_TOKEN_MISSING", `no access token for mcp ${id} — run: aice mcp oauth authorize ${id} && aice mcp oauth exchange ${id} --code … --state …`);
+              return 1;
+            }
+            oauthDeps = { bearerToken: token };
+          }
+          const res = await new McpClient(oauthDeps).call(cfg, "tools/call", { name: tool, arguments: args });
           s.audit.append({ actor, action: "mcp.invoke", target: id, decision: res.ok ? "allow" : "deny", detail: { tool, lane: res.lane, ok: res.ok, error: res.error ?? null } });
           if (!res.ok) {
             out.err("MCP_TRANSPORT", res.error ?? "transport failed");
@@ -1286,9 +1342,243 @@ async function main(pos0: string | undefined, rest: readonly string[], global: P
           out.print({ ok: true, result: res.result }, `mcp ${id} tool=${tool} ok → ${JSON.stringify(res.result).slice(0, 400)}`);
           return 0;
         }
-        return throwUsage("mcp add|list|remove|enable|disable|invoke");
+        if (sub === "oauth") {
+          // OAuth 2.1 remote profile (ADR-005): discovery → authorize (PKCE) →
+          // exchange → refresh/status/revoke. Tokens only ever touch the vault.
+          const lane = pos[1];
+          const id = pos[2] ?? throwUsage(`mcp oauth ${lane ?? ""} <id>`);
+          const row = s.mcpServers.get(id);
+          if (row === undefined) throw new CliError("NOT_FOUND", `unknown mcp server: ${id}`);
+          let cfg;
+          try {
+            cfg = { ...JSON.parse(row.configJson), id: row.id };
+          } catch {
+            throw new CliError("INVALID_CONFIG", `mcp server ${id} config_json unreadable`);
+          }
+          const oauth = cfg.oauth;
+          if (oauth === undefined) throw new CliError("OAUTH_NOT_CONFIGURED", `mcp server ${id} has no oauth config (re-add with --oauth-client-id …)`);
+          const { vault } = await detectVault();
+          const issuerOf = async (): Promise<string> => {
+            if (oauth.issuer !== undefined) return oauth.issuer;
+            const servers = await discoverProtectedResource(cfg.url as string);
+            if (servers.length === 0) throw new CliError("DISCOVERY_FAILED", "protected-resource metadata listed no authorization servers");
+            return servers[0] as string;
+          };
+          const handleOauthErr = (err: unknown): never => {
+            if (err instanceof OAuthError) throw new CliError(err.code, err.message);
+            throw err;
+          };
+          try {
+            if (lane === "discover") {
+              const meta = await discoverAuthorizationServer(await issuerOf());
+              s.audit.append({ actor, action: "mcp.oauth.discover", target: id, decision: "allow", detail: { issuer: meta.issuer } });
+              out.print(meta, `issuer:    ${meta.issuer}\nauthorize: ${meta.authorizationEndpoint}\ntoken:     ${meta.tokenEndpoint}${meta.registrationEndpoint !== undefined ? `\nregister:  ${meta.registrationEndpoint}` : ""}${meta.revocationEndpoint !== undefined ? `\nrevoke:    ${meta.revocationEndpoint}` : ""}`);
+              return 0;
+            }
+            if (lane === "authorize") {
+              const redirectUri = flagString(global.flags, "redirect-uri") ?? "http://127.0.0.1:8765/callback";
+              const meta = await discoverAuthorizationServer(await issuerOf());
+              const pkce = generatePkcePair();
+              const state = generateState();
+              await vault.store(secretRef(oauthRefs.pkce(id)), secretValue(pkce.verifier));
+              await vault.store(secretRef(oauthRefs.state(id)), secretValue(state));
+              const url = buildAuthorizeUrl({
+                meta,
+                clientId: oauth.clientId,
+                redirectUri,
+                state,
+                codeChallenge: pkce.challenge,
+                ...(oauth.scopes !== undefined ? { scopes: oauth.scopes } : {}),
+                resource: oauth.resource ?? (cfg.url as string),
+              });
+              s.audit.append({ actor, action: "mcp.oauth.authorize", target: id, decision: "allow", detail: { issuer: meta.issuer, scopes: oauth.scopes?.length ?? 0 } });
+              out.print(
+                { url },
+                `Open this URL, authorize, then run:\n  aice mcp oauth exchange ${id} --code <code> --state <state>\n\n${url}`,
+              );
+              return 0;
+            }
+            if (lane === "exchange") {
+              const code = needFlag(global.flags, "code");
+              const pastedState = needFlag(global.flags, "state");
+              const storedState = (await vault.load(secretRef(oauthRefs.state(id)))) as unknown as string;
+              if (pastedState !== storedState) {
+                s.audit.append({ actor, action: "mcp.oauth.exchange", target: id, decision: "deny", detail: { code: "STATE_MISMATCH" } });
+                out.err("STATE_MISMATCH", "state did not match the authorize lane — restart: aice mcp oauth authorize");
+                return 1;
+              }
+              const verifier = (await vault.load(secretRef(oauthRefs.pkce(id)))) as unknown as string;
+              const meta = await discoverAuthorizationServer(await issuerOf());
+              const tokens = await exchangeAuthorizationCode(meta.tokenEndpoint, {
+                clientId: oauth.clientId,
+                code,
+                redirectUri: flagString(global.flags, "redirect-uri") ?? "http://127.0.0.1:8765/callback",
+                codeVerifier: verifier,
+                resource: oauth.resource ?? (cfg.url as string),
+              });
+              await vault.store(secretRef(oauthRefs.accessToken(id)), secretValue(tokens.accessToken));
+              if (tokens.refreshToken !== undefined) {
+                await vault.store(secretRef(oauthRefs.refreshToken(id)), secretValue(tokens.refreshToken));
+              }
+              for (const ref of [oauthRefs.pkce(id), oauthRefs.state(id)]) {
+                await vault.delete(secretRef(ref)).catch(() => undefined); // one-time lanes
+              }
+              s.audit.append({
+                actor,
+                action: "mcp.oauth.exchange",
+                target: id,
+                decision: "allow",
+                detail: { expiresInSec: tokens.expiresInSec ?? null, hasRefresh: tokens.refreshToken !== undefined, scope: tokens.scope ?? null },
+              });
+              out.print(
+                { ok: true, expiresInSec: tokens.expiresInSec ?? null, refresh: tokens.refreshToken !== undefined },
+                `mcp ${id} oauth token stored in vault (access …${(tokens.accessToken as string).slice(-4)}${tokens.expiresInSec !== undefined ? `, expires in ${tokens.expiresInSec}s` : ""}${tokens.refreshToken !== undefined ? ", refresh stored" : ""})`,
+              );
+              return 0;
+            }
+            if (lane === "refresh") {
+              const refresh = (await vault.load(secretRef(oauthRefs.refreshToken(id)))) as unknown as string;
+              const meta = await discoverAuthorizationServer(await issuerOf());
+              const tokens = await refreshAccessToken(meta.tokenEndpoint, {
+                clientId: oauth.clientId,
+                refreshToken: refresh,
+                resource: oauth.resource ?? (cfg.url as string),
+                ...(oauth.scopes !== undefined ? { scopes: oauth.scopes } : {}),
+              });
+              await vault.rotate(secretRef(oauthRefs.accessToken(id)), secretValue(tokens.accessToken));
+              if (tokens.refreshToken !== undefined) {
+                await vault.rotate(secretRef(oauthRefs.refreshToken(id)), secretValue(tokens.refreshToken));
+              }
+              s.audit.append({ actor, action: "mcp.oauth.refresh", target: id, decision: "allow", detail: { expiresInSec: tokens.expiresInSec ?? null, rotatedRefresh: tokens.refreshToken !== undefined } });
+              out.print({ ok: true, expiresInSec: tokens.expiresInSec ?? null }, `mcp ${id} oauth token refreshed (vault rotated)`);
+              return 0;
+            }
+            if (lane === "status") {
+              const refs = oauthRefs;
+              const has = async (r: string): Promise<boolean> => vault.has(secretRef(r)).catch(() => false);
+              const statusDoc = {
+                pkcePending: await has(refs.pkce(id)),
+                statePending: await has(refs.state(id)),
+                accessToken: await has(refs.accessToken(id)),
+                refreshToken: await has(refs.refreshToken(id)),
+              };
+              let last4 = "";
+              if (statusDoc.accessToken) {
+                const meta = await vault.describe(secretRef(refs.accessToken(id)));
+                last4 = meta.last4;
+              }
+              out.print({ ...statusDoc, accessLast4: last4 }, `mcp ${id} oauth: access=${statusDoc.accessToken ? `present (…${last4})` : "absent"} refresh=${statusDoc.refreshToken ? "present" : "absent"} pending-flow=${statusDoc.pkcePending ? "yes (authorize started)" : "no"}`);
+              return 0;
+            }
+            if (lane === "revoke") {
+              for (const r of [oauthRefs.pkce(id), oauthRefs.state(id), oauthRefs.accessToken(id), oauthRefs.refreshToken(id)]) {
+                await vault.delete(secretRef(r)).catch(() => undefined);
+              }
+              s.audit.append({ actor, action: "mcp.oauth.revoke", target: id, decision: "allow", detail: { removed: "vault refs (local)" } });
+              out.print({ id, revoked: true }, `mcp ${id} oauth vault refs removed (local revocation; AS-side revocation needs the provider's revocation endpoint)`);
+              return 0;
+            }
+            return throwUsage("mcp oauth discover|authorize|exchange|refresh|status|revoke <id>");
+          } catch (err) {
+            return handleOauthErr(err);
+          }
+        }
+        return throwUsage("mcp add|list|remove|enable|disable|invoke|oauth");
       }
 
+      case "memory": {
+        // Plan §25 lanes: scope-isolated store; mutations audited content-free.
+        const flags = global.flags;
+        const sub = pos[0];
+        const ref = (): MemoryRef => ({
+          scope: enumFlag(flags, "scope", MEMORY_SCOPES) as MemoryRef["scope"],
+          projectId: flagString(flags, "project") ?? "",
+          taskId: flagString(flags, "task") ?? "",
+          modelId: flagString(flags, "model") ?? "",
+        });
+        try {
+          if (sub === "set") {
+            const r = ref();
+            const key = needFlag(flags, "key");
+            const value = needFlag(flags, "value");
+            const ttl = flagString(flags, "ttl-hours");
+            const expires = flagString(flags, "expires");
+            const row = s.memory.set({
+              ...r,
+              key,
+              value,
+              actor,
+              ...(ttl !== undefined ? { ttlHours: Number(ttl) } : {}),
+              ...(expires !== undefined ? { expiresAt: expires } : {}),
+            });
+            out.print(
+              { id: row.id, scope: row.scope, key: row.key, bytes: row.valueJson.length, expiresAt: row.expiresAt },
+              `memory ${row.scope} ${row.key} saved (${row.valueJson.length} bytes${row.expiresAt !== null ? `, expires ${row.expiresAt}` : ""})`,
+            );
+            return 0;
+          }
+          if (sub === "get") {
+            const row = s.memory.get(ref(), needFlag(flags, "key"));
+            if (row === undefined) throw new CliError("NOT_FOUND", "memory entry not found");
+            out.print(
+              row,
+              `memory ${row.scope} ${row.key} (updated ${row.updatedAt}${row.expiresAt !== null ? `, expires ${row.expiresAt}` : ""})\n${redact(row.valueJson).text}`,
+            );
+            return 0;
+          }
+          if (sub === "list") {
+            const prefix = flagString(flags, "prefix");
+            const rows = s.memory.list(ref(), { ...(prefix !== undefined ? { prefix } : {}) });
+            out.print(
+              rows,
+              rows.map((r) => `${r.scope}\t${r.key}\t${r.valueJson.length}B\t${r.expiresAt ?? "-"}`).join("\n"),
+            );
+            return 0;
+          }
+          if (sub === "delete") {
+            const removed = s.memory.delete(ref(), needFlag(flags, "key"), actor);
+            out.print({ removed }, removed ? "memory entry deleted" : "memory entry not found (no-op)");
+            return removed ? 0 : 1;
+          }
+          if (sub === "purge") {
+            const r = ref();
+            const removed = s.memory.purge(r, actor);
+            out.print({ scope: r.scope, removed }, `memory purge ${r.scope}: removed ${removed} entr${removed === 1 ? "y" : "ies"}`);
+            return 0;
+          }
+          if (sub === "export") {
+            const file = needFlag(flags, "file");
+            const res = s.memory.exportPartition(ref(), file, process.cwd(), actor);
+            out.print(res, `memory export → ${res.file} (${res.count} entries, ${res.bytes} bytes, redacted)`);
+            return 0;
+          }
+          if (sub === "sweep") {
+            const totals = s.memory.sweep(actor);
+            const text = Object.keys(totals).length === 0
+              ? "memory sweep: nothing to remove"
+              : `memory sweep: removed ${Object.entries(totals).map(([k, n]) => `${n} (${k})`).join(", ")}`;
+            out.print(totals, text);
+            return 0;
+          }
+          if (sub === "retention") {
+            const scope = flagString(flags, "scope");
+            if (scope === undefined) {
+              const rows = MEMORY_SCOPES.map((sc) => s.memory.retentionFor(sc));
+              out.print(rows, rows.map((r) => `${r.scope}\t${r.retentionDays === 0 ? "forever" : `${r.retentionDays}d`}\tmax ${r.maxEntries}`).join("\n"));
+              return 0;
+            }
+            const days = needFlag(flags, "days");
+            const max = needFlag(flags, "max");
+            s.memory.retentionSet(scope as MemoryRef["scope"], Number(days), Number(max), actor);
+            out.print({ scope, days: Number(days), max: Number(max) }, `memory retention ${scope}: ${Number(days) === 0 ? "forever" : `${days}d`}, max ${max}`);
+            return 0;
+          }
+          return throwUsage("memory set|get|list|delete|purge|export|sweep|retention");
+        } catch (err) {
+          if (err instanceof MemoryError) throw new CliError(err.code === "SECRET_REFUSED" ? "SECRET_REFUSED" : `MEMORY_${err.code}`, err.message);
+          throw err;
+        }
+      }
       case "skill": {
         const sub = pos[0];
         if (sub === "add") {

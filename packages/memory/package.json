@@ -1,0 +1,16 @@
+{
+  "name": "@ai-coding-env/memory",
+  "version": "1.0.3",
+  "private": true,
+  "type": "module",
+  "description": "Agent memory service (Plan §25): scope-isolated store, secret-refusing writes, retention sweep, redacted export",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test \"../../tests/unit/memory/**/*.test.mjs\""
+  }
+}
