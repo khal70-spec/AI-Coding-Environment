@@ -1,10 +1,17 @@
 # CI — security gates per Plan §47 and docs/security/dependency-policy.md.
 #
+# PARKED + UPGRADED 2026-09-20 (install-ready; pushing it to .github/workflows/
+# needs a maintainer token with the `workflows` permission — see scripts/ci/README.md).
+# Every action reference is pinned to a full-length commit SHA
+# (supply-chain hardening; tags are mutable).
+#
 # Blocking: tests (unit + security + integration), per-package tests, strict typecheck,
-# offline secret scan, npm audit (high+), CLI doctor, SQLite migration idempotency.
-# Lint is advisory until the ESLint flat config lands (Phase 3).
-# Phase 8 (dependency-policy): OSV-Scanner + Semgrep become blocking, Gitleaks + SBOM
-# join, and action references are pinned to full-length SHAs (supply-chain hardening).
+# blocking lint, offline secret scan, npm audit (high+), composed security gate
+# (secrets/dep-audit/supply-chain/SBOM/SAST), a11y static gate (A1–A15), CLI doctor,
+# SQLite migration idempotency — plus the Phase-8+ supply-chain lanes:
+# OSV-Scanner, Semgrep (p/security-audit), Trivy fs (all blocking, SHA-pinned).
+# Gitleaks is intentionally NOT duplicated in CI: the offline `check-secrets` lane is
+# already blocking locally and in this workflow (single maintenance surface, same intent).
 name: ci
 
 on:
@@ -29,9 +36,9 @@ jobs:
       matrix:
         node: ["22.x", "24.x"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -47,7 +54,8 @@ jobs:
 
       - name: secret scan (offline, blocking)
         run: npm run check:secrets
-      # Phase 8 (Plan §50): blocking security gate — secrets/dep-audit/supply-chain/SAST-lite.
+
+      # Composed blocking gate: secrets → dep-audit → supply-chain R1–R4 → SBOM → SAST-lite.
       - name: Security gate
         run: npm run security:gate
 
@@ -82,4 +90,38 @@ jobs:
         run: |
           DB_PATH="$RUNNER_TEMP/aice-ci.db" node scripts/db-migrate.mjs
           DB_PATH="$RUNNER_TEMP/aice-ci.db" node scripts/db-migrate.mjs | tee /tmp/migrate-rerun.log
-          grep -q "0 applied, 1 skipped" /tmp/migrate-rerun.log
+          grep -qE "0 applied, [0-9]+ skipped" /tmp/migrate-rerun.log
+
+  # --- Phase 8+ supply-chain lanes (blocking, SHA-pinned) -----------------------
+
+  osv-scanner:
+    name: osv-scanner (blocking)
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+
+  semgrep:
+    name: semgrep p/security-audit (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
+        with:
+          config: p/security-audit
+
+  trivy-fs:
+    name: trivy fs scan (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          vuln-type: os,library
+          ignore-unfixed: true
+          exit-code: "1"
+          scanners: vuln,secret

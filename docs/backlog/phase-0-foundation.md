@@ -10,10 +10,12 @@ kernel tests. **No full UI.**
 - [x] `README.md`, `CLAUDE.md`, `AGENTS.md`, `SECURITY.md`, `CONTRIBUTING.md`
 - [x] Root `package.json` (workspaces), `tsconfig.base.json`, `.editorconfig`, `.gitignore`
 - [x] `scripts/check-secrets.mjs` + `scripts/db-migrate.mjs` (zero-dep `node:sqlite`, idempotent)
-- [ ] CI with security gates (`.github/workflows/ci.yml`) — *workflow authored in the
-  2026-09-17 audit at `scripts/ci/ci.yml` (all gates verified locally); installing it
-  into `.github/workflows/` is blocked on the automation token's `workflows` permission
-  — one-step install: [`scripts/ci/README.md`](../../scripts/ci/README.md)*
+- [ ] CI with security gates (`.github/workflows/ci.yml`) — workflow authored at
+  `scripts/ci/ci.yml` and **upgraded 2026-09-20** (SHA-pinned actions; blocking
+  OSV-Scanner/Semgrep `p/security-audit`/Trivy lanes; all gates verified locally).
+  Install refused twice (2026-09-17, 2026-09-20) — the pushing App token lacks the
+  `workflows` permission; a maintainer runs the one-step install:
+  [`scripts/ci/README.md`](../../scripts/ci/README.md)
 
 ## P0.2 Threat model & policies (Plan §44/45, §57.4–5)
 

@@ -7,10 +7,10 @@
 2. **Pinned + locked**: exact versions in `package.json`, committed lockfile (`npm-shrinkwrap`
    or `package-lock.json`) from Phase 1 onward. No floating ranges for security-sensitive libs.
 3. **Gates on every PR**: `npm audit --audit-level=high` and the offline secret scan are
-   blocking from Phase 0 (workflow authored at `scripts/ci/ci.yml`, pending install —
-   run locally until then). OSV-Scanner and Semgrep
-   `p/security-audit` are introduced as advisory jobs in Phase 3 and become blocking in
-   Phase 8; SBOM generation and SHA-pinned workflow actions land in Phase 8 too.
+   blocking from Phase 0; the CI workflow is authored at `scripts/ci/ci.yml`
+   (upgraded 2026-09-20 with SHA-pinned actions and blocking OSV-Scanner/Semgrep/
+   Trivy lanes; maintainer-token install pending — history in `scripts/ci/README.md`).
+   SBOM generation runs offline via `tools:sbom` + the gate's sbom-manifest lane.
 4. **No pre/postinstall scripts** from third-party packages unless reviewed and pinned;
    set `ignore-scripts` where practical and allowlist explicitly.
 5. **SBOM**: generated from Phase 8 (`source → test → security → signed build → verify → release`).
